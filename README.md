@@ -10,6 +10,8 @@ Type coverage, matchup, and gap-suggestion tool for Pokémon Shield & Scarlet te
 - **Matchup** — select a Shield or Scarlet gym leader / Elite Four / Champion and see per-Pokémon matchup breakdowns with a recommended lead.
 - **Suggestions** — ranks available Pokémon by how well they patch your team's defensive weaknesses and offensive gaps, with one-click add.
 
+Each tab opens with a plain-English summary card, split into **What the numbers say** (factual) and **What I'd do** (explicitly marked as opinion). Summaries are rule-based and deterministic — no LLM call, no network request.
+
 Switching between Shield and Scarlet keeps your team intact. Any Pokémon not available in the newly selected game is flagged (not cleared) and excluded from analysis until removed or the game is switched back.
 
 ## Stack
@@ -22,4 +24,4 @@ Pokémon roster and typing pulled from a maintained spreadsheet (Shield: Galar/I
 
 ## Status
 
-Work in progress. Offensive analysis is STAB-only (no moveset awareness yet). Base stats, abilities, and held items aren't factored into suggestions. Opponent rosters should be spot-checked before relying on them for a real playthrough decision.
+Work in progress. Offensive analysis is STAB-only (no moveset awareness yet). Base stats, abilities, and held items aren't factored into suggestions or summaries. Opponent rosters should be spot-checked before relying on them for a real playthrough decision.
