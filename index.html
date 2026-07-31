@@ -41,6 +41,15 @@ const TYPE_COLORS = {
   Steel:"#b8b8d0",Fairy:"#ee99ac"
 };
 
+// Availability codes. NOTE: never derive this from game[0] — "Shield" and
+// "Scarlet" both start with "S".
+const GAME_CODE = { Shield: "S", Scarlet: "R" };
+function codeFor(game) { return GAME_CODE[game] || null; }
+function availableIn(p, game) {
+  if (game === "Both") return true;
+  return p.game === "B" || p.game === codeFor(game);
+}
+
 // Effectiveness chart: CHART[atk][def] = multiplier
 // Only store non-1x values as sparse map for compactness
 const E = { i: 0, h: 0.5, s: 2 }; // immune, half, super
@@ -278,7 +287,7 @@ function suggestPokemon(team, game, limit = 8) {
   const uncoveredTypes = offense.filter(o => !o.covered).map(o => o.type);
   const teamNames = new Set(team.map(p => p.name));
   const candidates = POKEMON
-    .filter(p => (game === "Both" || p.game === "B" || p.game === game[0]))
+    .filter(p => availableIn(p, game))
     .filter(p => !teamNames.has(p.name));
 
   const scored = candidates.map(p => {
@@ -706,7 +715,7 @@ function PokemonSearch({ value, onChange, game, placeholder, theme }) {
     if (!query) return [];
     const q = query.toLowerCase();
     return POKEMON
-      .filter(p => (game === "Both" || p.game === "B" || p.game === game[0]))
+      .filter(p => availableIn(p, game))
       .filter(p => p.name.toLowerCase().includes(q))
       .slice(0, 12);
   }, [query, game]);
@@ -768,8 +777,7 @@ function App() {
   const [tab, setTab] = useState("coverage");
   const [opponent, setOpponent] = useState(null);
 
-  const gameLetter = game[0]; // "S" or "R"
-  const isValidForGame = useCallback((p) => !p || p.game === "B" || p.game === gameLetter, [gameLetter]);
+  const isValidForGame = useCallback((p) => !p || availableIn(p, game), [game]);
 
   // Only Pokémon valid for the current game feed the analysis engines.
   const activeTeam = team.filter(p => p && isValidForGame(p));
