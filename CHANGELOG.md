@@ -3,12 +3,20 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.1] - 2026-07-31
+
+### Fixed
+- **Scarlet mode was showing the Shield roster.** Availability was derived with `game[0]`, but "Shield" and "Scarlet" both start with "S", so Scarlet resolved to the Shield code. In Scarlet the search box, the suggestion pool, and the availability flag all used Shield data — Scarlet-only Pokémon (e.g. Gholdengo) were wrongly flagged "not available in Scarlet", and Shield-only ones (e.g. Suicune, Arctozolt) were wrongly offered. Replaced with an explicit `GAME_CODE` lookup (`Shield: "S"`, `Scarlet: "R"`) used by all three call sites. The opponent dropdown was unaffected, as it keys off the full game name.
+
 ## [1.2.0] - 2026-07-31
 
 ### Added
 - Plain-English summary card at the top of the Coverage, Matchup, and Suggestions tabs.
 - Each card is split into two labelled blocks: **What the numbers say** (factual, derived directly from the type math) and **What I'd do** (explicitly marked as opinion, not fact).
 - Fixed severity vocabulary shown as a coloured badge on each card: `CRITICAL` / `NOTABLE` / `MINOR` / `CLEAN`.
+
+### Changed
+- Pokémon roster extracted into `pokedex.js` using a compact encoding. Regenerating the dex from the source spreadsheet no longer requires touching app code.
 
 ### Notes
 - Summaries are rule-based and deterministic — no LLM call, no network request, no API key. Consistent with the tool's no-backend design.
