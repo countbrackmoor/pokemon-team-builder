@@ -19,6 +19,9 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+<!-- Pokémon roster data. Must load before the app script below. -->
+<script src="pokedex.js"></script>
+
 <script type="text/babel" data-presets="react">
 const { useState, useMemo, useCallback } = React;
 
@@ -73,957 +76,8 @@ function getDefensiveMultiplier(atkType, defTypes) {
 
 // ── POKÉMON DATA ─────────────────────────────────────────────────────────────
 // [Name, Type1, Type2|null, "S"=Shield "R"=Scarlet "B"=Both]
-const RAW_POKEMON = [
-  ["Abomasnow","Grass","Ice","B"],
-  ["Abra","Psychic",null,"S"],
-  ["Absol","Dark",null,"S"],
-  ["Accelgor","Bug",null,"S"],
-  ["Aegislash","Steel","Ghost","S"],
-  ["Aerodactyl","Rock","Flying","S"],
-  ["Aggron","Steel","Rock","S"],
-  ["Aipom","Normal",null,"R"],
-  ["Alakazam","Psychic",null,"S"],
-  ["Alcremie","Fairy",null,"B"],
-  ["Alomomola","Water",null,"R"],
-  ["Altaria","Dragon","Flying","B"],
-  ["Amaura","Rock","Ice","S"],
-  ["Ambipom","Normal",null,"R"],
-  ["Amoonguss","Grass","Poison","B"],
-  ["Ampharos","Electric",null,"R"],
-  ["Annihilape","Fighting","Ghost","R"],
-  ["Anorith","Rock","Bug","S"],
-  ["Appletun","Grass","Dragon","B"],
-  ["Applin","Grass","Dragon","B"],
-  ["Araquanid","Water","Bug","B"],
-  ["Arbok","Poison",null,"R"],
-  ["Arboliva","Grass","Normal","R"],
-  ["Arcanine","Fire",null,"B"],
-  ["Archaludon","Steel","Dragon","R"],
-  ["Archen","Rock","Flying","S"],
-  ["Archeops","Rock","Flying","S"],
-  ["Arctibax","Dragon","Ice","R"],
-  ["Arctovish","Water","Ice","S"],
-  ["Arctozolt","Electric","Ice","S"],
-  ["Ariados","Bug","Poison","R"],
-  ["Armaldo","Rock","Bug","S"],
-  ["Armarouge","Fire","Psychic","R"],
-  ["Aromatisse","Fairy",null,"S"],
-  ["Aron","Steel","Rock","S"],
-  ["Arrokuda","Water",null,"B"],
-  ["Articuno","Ice","Flying","S"],
-  ["Audino","Normal",null,"S"],
-  ["Aurorus","Rock","Ice","S"],
-  ["Avalugg","Ice",null,"B"],
-  ["Axew","Dragon",null,"B"],
-  ["Azelf","Psychic",null,"S"],
-  ["Azumarill","Water","Fairy","B"],
-  ["Azurill","Normal","Fairy","B"],
-  ["Bagon","Dragon",null,"B"],
-  ["Baltoy","Ground","Psychic","S"],
-  ["Banette","Ghost",null,"R"],
-  ["Barbaracle","Rock","Water","S"],
-  ["Barboach","Water","Ground","B"],
-  ["Barraskewda","Water",null,"B"],
-  ["Basculegion","Water","Ghost","R"],
-  ["Basculin","Water",null,"B"],
-  ["Bastiodon","Rock","Steel","R"],
-  ["Baxcalibur","Dragon","Ice","R"],
-  ["Bayleef","Grass",null,"R"],
-  ["Beartic","Ice",null,"B"],
-  ["Beheeyem","Psychic",null,"S"],
-  ["Beldum","Steel","Psychic","B"],
-  ["Bellibolt","Electric",null,"R"],
-  ["Bellossom","Grass",null,"B"],
-  ["Bellsprout","Grass","Poison","R"],
-  ["Bergmite","Ice",null,"B"],
-  ["Bewear","Normal","Fighting","S"],
-  ["Binacle","Rock","Water","S"],
-  ["Bisharp","Dark","Steel","B"],
-  ["Blacephalon","Fire","Ghost","S"],
-  ["Blastoise","Water",null,"B"],
-  ["Blaziken","Fire","Fighting","R"],
-  ["Blipbug","Bug",null,"S"],
-  ["Blissey","Normal",null,"B"],
-  ["Blitzle","Electric",null,"R"],
-  ["Boldore","Rock",null,"S"],
-  ["Boltund","Electric",null,"S"],
-  ["Bombirdier","Flying","Dark","R"],
-  ["Bonsly","Rock",null,"B"],
-  ["Bouffalant","Normal",null,"S"],
-  ["Bounsweet","Grass",null,"B"],
-  ["Braixen","Fire",null,"R"],
-  ["Brambleghast","Grass","Ghost","R"],
-  ["Bramblin","Grass","Ghost","R"],
-  ["Braviary","Normal","Flying","B"],
-  ["Breloom","Grass","Fighting","R"],
-  ["Brionne","Water",null,"R"],
-  ["Bronzong","Steel","Psychic","B"],
-  ["Bronzor","Steel","Psychic","B"],
-  ["Brute Bonnet","Grass","Dark","R"],
-  ["Bruxish","Water","Psychic","R"],
-  ["Budew","Grass","Poison","S"],
-  ["Buizel","Water",null,"R"],
-  ["Bulbasaur","Grass","Poison","B"],
-  ["Buneary","Normal",null,"S"],
-  ["Bunnelby","Normal",null,"S"],
-  ["Butterfree","Bug","Flying","S"],
-  ["Buzzwole","Bug","Fighting","S"],
-  ["Cacnea","Grass",null,"R"],
-  ["Cacturne","Grass","Dark","R"],
-  ["Calyrex","Psychic","Grass","S"],
-  ["Camerupt","Fire","Ground","R"],
-  ["Capsakid","Grass",null,"R"],
-  ["Carbink","Rock","Fairy","B"],
-  ["Carkol","Rock","Fire","B"],
-  ["Carracosta","Water","Rock","S"],
-  ["Carvanha","Water","Dark","S"],
-  ["Caterpie","Bug",null,"S"],
-  ["Celesteela","Steel","Flying","S"],
-  ["Centiskorch","Fire","Bug","S"],
-  ["Ceruledge","Fire","Ghost","R"],
-  ["Cetitan","Ice",null,"R"],
-  ["Cetoddle","Ice",null,"R"],
-  ["Chandelure","Ghost","Fire","B"],
-  ["Chansey","Normal",null,"B"],
-  ["Charcadet","Fire",null,"R"],
-  ["Charizard","Fire","Flying","B"],
-  ["Charjabug","Bug","Electric","B"],
-  ["Charmander","Fire",null,"B"],
-  ["Charmeleon","Fire",null,"B"],
-  ["Cherrim","Grass",null,"S"],
-  ["Cherubi","Grass",null,"S"],
-  ["Chesnaught","Grass","Fighting","R"],
-  ["Chespin","Grass",null,"R"],
-  ["Chewtle","Water",null,"B"],
-  ["Chi-Yu","Dark","Fire","R"],
-  ["Chien-Pao","Dark","Ice","R"],
-  ["Chikorita","Grass",null,"R"],
-  ["Chimchar","Fire",null,"R"],
-  ["Chimecho","Psychic",null,"R"],
-  ["Chinchou","Water","Electric","B"],
-  ["Chingling","Psychic",null,"R"],
-  ["Cinccino","Normal",null,"B"],
-  ["Cinderace","Fire",null,"B"],
-  ["Clauncher","Water",null,"B"],
-  ["Clawitzer","Water",null,"B"],
-  ["Claydol","Ground","Psychic","S"],
-  ["Clefable","Fairy",null,"B"],
-  ["Clefairy","Fairy",null,"B"],
-  ["Cleffa","Fairy",null,"B"],
-  ["Clobbopus","Fighting",null,"S"],
-  ["Clodsire","Poison","Ground","R"],
-  ["Cloyster","Water","Ice","B"],
-  ["Coalossal","Rock","Fire","B"],
-  ["Cobalion","Steel","Fighting","S"],
-  ["Cofagrigus","Ghost",null,"S"],
-  ["Combee","Bug","Flying","B"],
-  ["Combusken","Fire","Fighting","R"],
-  ["Comfey","Fairy",null,"B"],
-  ["Conkeldurr","Fighting",null,"B"],
-  ["Copperajah","Steel",null,"B"],
-  ["Corphish","Water",null,"B"],
-  ["Corsola","Ghost",null,"S"],
-  ["Corviknight","Flying","Steel","B"],
-  ["Corvisquire","Flying",null,"B"],
-  ["Cottonee","Grass","Fairy","B"],
-  ["Crabominable","Fighting","Ice","R"],
-  ["Crabrawler","Fighting",null,"R"],
-  ["Cradily","Rock","Grass","S"],
-  ["Cramorant","Flying","Water","B"],
-  ["Cranidos","Rock",null,"R"],
-  ["Crawdaunt","Water","Dark","B"],
-  ["Cresselia","Psychic",null,"S"],
-  ["Croagunk","Poison","Fighting","B"],
-  ["Crobat","Poison","Flying","S"],
-  ["Crocalor","Fire",null,"R"],
-  ["Croconaw","Water",null,"R"],
-  ["Crustle","Bug","Rock","S"],
-  ["Cryogonal","Ice",null,"B"],
-  ["Cubchoo","Ice",null,"B"],
-  ["Cubone","Ground",null,"S"],
-  ["Cufant","Steel",null,"B"],
-  ["Cursola","Ghost",null,"S"],
-  ["Cutiefly","Bug","Fairy","B"],
-  ["Cyclizar","Dragon","Normal","R"],
-  ["Cyndaquil","Fire",null,"R"],
-  ["Dachsbun","Fairy",null,"R"],
-  ["Darmanitan","Ice",null,"S"],
-  ["Dartrix","Grass","Flying","R"],
-  ["Darumaka","Ice",null,"S"],
-  ["Decidueye","Grass","Ghost","R"],
-  ["Dedenne","Electric","Fairy","B"],
-  ["Deerling","Normal","Grass","R"],
-  ["Deino","Dark","Dragon","B"],
-  ["Delibird","Ice","Flying","B"],
-  ["Delphox","Fire","Psychic","R"],
-  ["Dewgong","Water","Ice","R"],
-  ["Dewott","Water",null,"R"],
-  ["Dewpider","Water","Bug","B"],
-  ["Dhelmise","Ghost","Grass","S"],
-  ["Dialga","Steel","Dragon","S"],
-  ["Diggersby","Normal","Ground","S"],
-  ["Diglett","Ground",null,"B"],
-  ["Dipplin","Grass","Dragon","R"],
-  ["Ditto","Normal",null,"B"],
-  ["Dodrio","Normal","Flying","R"],
-  ["Doduo","Normal","Flying","R"],
-  ["Dolliv","Grass","Normal","R"],
-  ["Dondozo","Water",null,"R"],
-  ["Donphan","Ground",null,"R"],
-  ["Dottler","Bug","Psychic","S"],
-  ["Doublade","Steel","Ghost","S"],
-  ["Dracovish","Water","Dragon","S"],
-  ["Dracozolt","Electric","Dragon","S"],
-  ["Dragalge","Poison","Dragon","B"],
-  ["Dragapult","Dragon","Ghost","B"],
-  ["Dragonair","Dragon",null,"B"],
-  ["Dragonite","Dragon","Flying","B"],
-  ["Drakloak","Dragon","Ghost","B"],
-  ["Drampa","Normal","Dragon","S"],
-  ["Drapion","Poison","Dark","S"],
-  ["Dratini","Dragon",null,"B"],
-  ["Drednaw","Water","Rock","B"],
-  ["Dreepy","Dragon","Ghost","B"],
-  ["Drifblim","Ghost","Flying","B"],
-  ["Drifloon","Ghost","Flying","B"],
-  ["Drilbur","Ground",null,"B"],
-  ["Drizzile","Water",null,"B"],
-  ["Drowzee","Psychic",null,"R"],
-  ["Druddigon","Dragon",null,"S"],
-  ["Dubwool","Normal",null,"S"],
-  ["Ducklett","Water","Flying","R"],
-  ["Dudunsparce","Normal",null,"R"],
-  ["Dugtrio","Ground",null,"B"],
-  ["Dunsparce","Normal",null,"B"],
-  ["Duosion","Psychic",null,"B"],
-  ["Duraludon","Steel","Dragon","B"],
-  ["Durant","Bug","Steel","S"],
-  ["Dusclops","Ghost",null,"B"],
-  ["Dusknoir","Ghost",null,"B"],
-  ["Duskull","Ghost",null,"B"],
-  ["Dwebble","Bug","Rock","S"],
-  ["Eelektrik","Electric",null,"R"],
-  ["Eelektross","Electric",null,"R"],
-  ["Eevee","Normal",null,"B"],
-  ["Eiscue","Ice",null,"B"],
-  ["Ekans","Poison",null,"R"],
-  ["Eldegoss","Grass",null,"S"],
-  ["Electabuzz","Electric",null,"B"],
-  ["Electivire","Electric",null,"B"],
-  ["Electrike","Electric",null,"S"],
-  ["Electrode","Electric",null,"R"],
-  ["Elekid","Electric",null,"B"],
-  ["Elgyem","Psychic",null,"S"],
-  ["Emboar","Fire","Fighting","R"],
-  ["Emolga","Electric","Flying","S"],
-  ["Empoleon","Water","Steel","R"],
-  ["Entei","Fire",null,"S"],
-  ["Escavalier","Bug","Steel","S"],
-  ["Espathra","Psychic",null,"R"],
-  ["Espeon","Psychic",null,"B"],
-  ["Espurr","Psychic",null,"B"],
-  ["Eternatus","Poison","Dragon","S"],
-  ["Excadrill","Ground","Steel","B"],
-  ["Exeggcute","Grass","Psychic","B"],
-  ["Exeggutor","Grass","Psychic","B"],
-  ["Exploud","Normal",null,"S"],
-  ["Falinks","Fighting",null,"B"],
-  ["Farfetch'd","Fighting",null,"S"],
-  ["Farigiraf","Normal","Psychic","R"],
-  ["Feebas","Water",null,"B"],
-  ["Fennekin","Fire",null,"R"],
-  ["Feraligatr","Water",null,"R"],
-  ["Ferroseed","Grass","Steel","S"],
-  ["Ferrothorn","Grass","Steel","S"],
-  ["Fezandipiti","Poison","Fairy","R"],
-  ["Fidough","Fairy",null,"R"],
-  ["Finizen","Water",null,"R"],
-  ["Finneon","Water",null,"R"],
-  ["Flaaffy","Electric",null,"R"],
-  ["Flabébé","Fairy",null,"R"],
-  ["Flamigo","Flying","Fighting","R"],
-  ["Flapple","Grass","Dragon","B"],
-  ["Flareon","Fire",null,"B"],
-  ["Fletchinder","Fire","Flying","B"],
-  ["Fletchling","Normal","Flying","B"],
-  ["Flittle","Psychic",null,"R"],
-  ["Floatzel","Water",null,"R"],
-  ["Floette","Fairy",null,"R"],
-  ["Floragato","Grass",null,"R"],
-  ["Florges","Fairy",null,"R"],
-  ["Flutter Mane","Ghost","Fairy","R"],
-  ["Flygon","Ground","Dragon","B"],
-  ["Fomantis","Grass",null,"B"],
-  ["Foongus","Grass","Poison","B"],
-  ["Forretress","Bug","Steel","R"],
-  ["Fraxure","Dragon",null,"B"],
-  ["Frigibax","Dragon","Ice","R"],
-  ["Frillish","Water","Ghost","S"],
-  ["Froakie","Water",null,"R"],
-  ["Frogadier","Water",null,"R"],
-  ["Froslass","Ice","Ghost","B"],
-  ["Frosmoth","Ice","Bug","B"],
-  ["Fuecoco","Fire",null,"R"],
-  ["Furret","Normal",null,"R"],
-  ["Gabite","Dragon","Ground","B"],
-  ["Gallade","Psychic","Fighting","B"],
-  ["Galvantula","Bug","Electric","B"],
-  ["Garbodor","Poison",null,"S"],
-  ["Garchomp","Dragon","Ground","B"],
-  ["Gardevoir","Psychic","Fairy","B"],
-  ["Garganacl","Rock",null,"R"],
-  ["Gastly","Ghost","Poison","B"],
-  ["Gastrodon","Water","Ground","B"],
-  ["Gengar","Ghost","Poison","B"],
-  ["Geodude","Rock","Ground","R"],
-  ["Gholdengo","Steel","Ghost","R"],
-  ["Gible","Dragon","Ground","B"],
-  ["Gigalith","Rock",null,"S"],
-  ["Gimmighoul","Ghost",null,"R"],
-  ["Girafarig","Normal","Psychic","R"],
-  ["Giratina","Ghost","Dragon","S"],
-  ["Glaceon","Ice",null,"B"],
-  ["Glalie","Ice",null,"B"],
-  ["Glastrier","Ice",null,"S"],
-  ["Gligar","Ground","Flying","R"],
-  ["Glimmet","Rock","Poison","R"],
-  ["Glimmora","Rock","Poison","R"],
-  ["Gliscor","Ground","Flying","R"],
-  ["Gloom","Grass","Poison","B"],
-  ["Gogoat","Grass",null,"R"],
-  ["Golbat","Poison","Flying","S"],
-  ["Goldeen","Water",null,"S"],
-  ["Golduck","Water",null,"B"],
-  ["Golem","Rock","Ground","R"],
-  ["Golett","Ground","Ghost","B"],
-  ["Golisopod","Bug","Water","S"],
-  ["Golurk","Ground","Ghost","B"],
-  ["Goodra","Dragon",null,"B"],
-  ["Goomy","Dragon",null,"B"],
-  ["Gossifleur","Grass",null,"S"],
-  ["Gothita","Psychic",null,"B"],
-  ["Gothitelle","Psychic",null,"B"],
-  ["Gothorita","Psychic",null,"B"],
-  ["Gouging Fire","Fire","Dragon","R"],
-  ["Gourgeist","Ghost","Grass","S"],
-  ["Grafaiai","Poison","Normal","R"],
-  ["Granbull","Fairy",null,"R"],
-  ["Grapploct","Fighting",null,"S"],
-  ["Graveler","Rock","Ground","R"],
-  ["Great Tusk","Ground","Fighting","R"],
-  ["Greavard","Ghost",null,"R"],
-  ["Greedent","Normal",null,"B"],
-  ["Greninja","Water","Dark","R"],
-  ["Grimer","Poison",null,"R"],
-  ["Grimmsnarl","Dark","Fairy","B"],
-  ["Grookey","Grass",null,"B"],
-  ["Grotle","Grass",null,"R"],
-  ["Groudon","Ground",null,"S"],
-  ["Grovyle","Grass",null,"R"],
-  ["Growlithe","Fire",null,"B"],
-  ["Grubbin","Bug",null,"B"],
-  ["Grumpig","Psychic",null,"R"],
-  ["Gulpin","Poison",null,"R"],
-  ["Gumshoos","Normal",null,"R"],
-  ["Gurdurr","Fighting",null,"B"],
-  ["Guzzlord","Dark","Dragon","S"],
-  ["Gyarados","Water","Flying","B"],
-  ["Hakamo-o","Dragon","Fighting","B"],
-  ["Happiny","Normal",null,"B"],
-  ["Hariyama","Fighting",null,"R"],
-  ["Hatenna","Psychic",null,"B"],
-  ["Hatterene","Psychic","Fairy","B"],
-  ["Hattrem","Psychic",null,"B"],
-  ["Haunter","Ghost","Poison","B"],
-  ["Hawlucha","Fighting","Flying","B"],
-  ["Haxorus","Dragon",null,"B"],
-  ["Heatmor","Fire",null,"S"],
-  ["Heatran","Fire","Steel","S"],
-  ["Heliolisk","Electric","Normal","S"],
-  ["Helioptile","Electric","Normal","S"],
-  ["Heracross","Bug","Fighting","B"],
-  ["Herdier","Normal",null,"S"],
-  ["Hippopotas","Ground",null,"B"],
-  ["Hippowdon","Ground",null,"B"],
-  ["Hitmonchan","Fighting",null,"B"],
-  ["Hitmonlee","Fighting",null,"B"],
-  ["Hitmontop","Fighting",null,"B"],
-  ["Ho-Oh","Fire","Flying","S"],
-  ["Honchkrow","Dark","Flying","R"],
-  ["Honedge","Steel","Ghost","S"],
-  ["Hoothoot","Normal","Flying","B"],
-  ["Hoppip","Grass","Flying","R"],
-  ["Horsea","Water",null,"B"],
-  ["Houndoom","Dark","Fire","R"],
-  ["Houndour","Dark","Fire","R"],
-  ["Houndstone","Ghost",null,"R"],
-  ["Hydrapple","Grass","Dragon","R"],
-  ["Hydreigon","Dark","Dragon","B"],
-  ["Hypno","Psychic",null,"R"],
-  ["Igglybuff","Normal","Fairy","B"],
-  ["Illumise","Bug",null,"R"],
-  ["Impidimp","Dark","Fairy","B"],
-  ["Incineroar","Fire","Dark","R"],
-  ["Indeedee","Psychic","Normal","B"],
-  ["Infernape","Fire","Fighting","R"],
-  ["Inkay","Dark","Psychic","B"],
-  ["Inteleon","Water",null,"B"],
-  ["Iron Boulder","Rock","Psychic","R"],
-  ["Iron Bundle","Ice","Water","R"],
-  ["Iron Crown","Steel","Psychic","R"],
-  ["Iron Hands","Fighting","Electric","R"],
-  ["Iron Jugulis","Dark","Flying","R"],
-  ["Iron Leaves","Grass","Psychic","R"],
-  ["Iron Moth","Fire","Poison","R"],
-  ["Iron Thorns","Rock","Electric","R"],
-  ["Iron Treads","Ground","Steel","R"],
-  ["Iron Valiant","Fairy","Fighting","R"],
-  ["Ivysaur","Grass","Poison","B"],
-  ["Jangmo-o","Dragon",null,"B"],
-  ["Jellicent","Water","Ghost","S"],
-  ["Jigglypuff","Normal","Fairy","B"],
-  ["Jolteon","Electric",null,"B"],
-  ["Joltik","Bug","Electric","B"],
-  ["Jumpluff","Grass","Flying","R"],
-  ["Jynx","Ice","Psychic","S"],
-  ["Kabuto","Rock","Water","S"],
-  ["Kabutops","Rock","Water","S"],
-  ["Kadabra","Psychic",null,"S"],
-  ["Kangaskhan","Normal",null,"S"],
-  ["Karrablast","Bug",null,"S"],
-  ["Kartana","Grass","Steel","S"],
-  ["Kilowattrel","Electric","Flying","R"],
-  ["Kingambit","Dark","Steel","R"],
-  ["Kingdra","Water","Dragon","B"],
-  ["Kingler","Water",null,"S"],
-  ["Kirlia","Psychic","Fairy","B"],
-  ["Klang","Steel",null,"S"],
-  ["Klawf","Rock",null,"R"],
-  ["Kleavor","Bug","Rock","R"],
-  ["Klefki","Steel","Fairy","B"],
-  ["Klink","Steel",null,"S"],
-  ["Klinklang","Steel",null,"S"],
-  ["Koffing","Poison",null,"B"],
-  ["Komala","Normal",null,"R"],
-  ["Kommo-o","Dragon","Fighting","B"],
-  ["Koraidon","Fighting","Dragon","R"],
-  ["Krabby","Water",null,"S"],
-  ["Kricketot","Bug",null,"R"],
-  ["Kricketune","Bug",null,"R"],
-  ["Krokorok","Ground","Dark","B"],
-  ["Krookodile","Ground","Dark","B"],
-  ["Kubfu","Fighting",null,"S"],
-  ["Kyogre","Water",null,"S"],
-  ["Kyurem","Dragon","Ice","S"],
-  ["Lairon","Steel","Rock","S"],
-  ["Lampent","Ghost","Fire","B"],
-  ["Landorus","Ground","Flying","S"],
-  ["Lanturn","Water","Electric","B"],
-  ["Lapras","Water","Ice","B"],
-  ["Larvesta","Bug","Fire","B"],
-  ["Larvitar","Rock","Ground","B"],
-  ["Latias","Dragon","Psychic","S"],
-  ["Latios","Dragon","Psychic","S"],
-  ["Leafeon","Grass",null,"B"],
-  ["Leavanny","Bug","Grass","R"],
-  ["Lechonk","Normal",null,"R"],
-  ["Lickilicky","Normal",null,"S"],
-  ["Lickitung","Normal",null,"S"],
-  ["Liepard","Dark",null,"S"],
-  ["Lileep","Rock","Grass","S"],
-  ["Lilligant","Grass",null,"B"],
-  ["Lillipup","Normal",null,"S"],
-  ["Linoone","Dark","Normal","S"],
-  ["Litleo","Fire","Normal","R"],
-  ["Litten","Fire",null,"R"],
-  ["Litwick","Ghost","Fire","B"],
-  ["Lokix","Bug","Dark","R"],
-  ["Lombre","Water","Grass","B"],
-  ["Lopunny","Normal",null,"S"],
-  ["Lotad","Water","Grass","B"],
-  ["Loudred","Normal",null,"S"],
-  ["Lucario","Fighting","Steel","B"],
-  ["Ludicolo","Water","Grass","B"],
-  ["Lugia","Psychic","Flying","S"],
-  ["Lumineon","Water",null,"R"],
-  ["Lunala","Psychic","Ghost","S"],
-  ["Lunatone","Rock","Psychic","S"],
-  ["Lurantis","Grass",null,"B"],
-  ["Luvdisc","Water",null,"R"],
-  ["Luxio","Electric",null,"B"],
-  ["Luxray","Electric",null,"B"],
-  ["Lycanroc","Rock",null,"B"],
-  ["Mabosstiff","Dark",null,"R"],
-  ["Machamp","Fighting",null,"S"],
-  ["Machoke","Fighting",null,"S"],
-  ["Machop","Fighting",null,"S"],
-  ["Magby","Fire",null,"B"],
-  ["Magcargo","Fire","Rock","R"],
-  ["Magikarp","Water",null,"B"],
-  ["Magmar","Fire",null,"B"],
-  ["Magmortar","Fire",null,"B"],
-  ["Magnemite","Electric","Steel","B"],
-  ["Magneton","Electric","Steel","B"],
-  ["Magnezone","Electric","Steel","B"],
-  ["Makuhita","Fighting",null,"R"],
-  ["Malamar","Dark","Psychic","B"],
-  ["Mamoswine","Ice","Ground","B"],
-  ["Mandibuzz","Dark","Flying","B"],
-  ["Manectric","Electric",null,"S"],
-  ["Mankey","Fighting",null,"R"],
-  ["Mantine","Water","Flying","S"],
-  ["Mantyke","Water","Flying","S"],
-  ["Maractus","Grass",null,"S"],
-  ["Mareanie","Poison","Water","B"],
-  ["Mareep","Electric",null,"R"],
-  ["Marill","Water","Fairy","B"],
-  ["Marowak","Ground",null,"S"],
-  ["Marshtomp","Water","Ground","R"],
-  ["Maschiff","Dark",null,"R"],
-  ["Masquerain","Bug","Flying","R"],
-  ["Maushold","Normal",null,"R"],
-  ["Mawile","Steel","Fairy","S"],
-  ["Medicham","Fighting","Psychic","R"],
-  ["Meditite","Fighting","Psychic","R"],
-  ["Meganium","Grass",null,"R"],
-  ["Meowscarada","Grass","Dark","R"],
-  ["Meowstic","Psychic",null,"B"],
-  ["Meowth","Steel",null,"B"],
-  ["Mesprit","Psychic",null,"S"],
-  ["Metagross","Steel","Psychic","B"],
-  ["Metang","Steel","Psychic","B"],
-  ["Metapod","Bug",null,"S"],
-  ["Mewtwo","Psychic",null,"S"],
-  ["Mienfoo","Fighting",null,"B"],
-  ["Mienshao","Fighting",null,"B"],
-  ["Mightyena","Dark",null,"R"],
-  ["Milcery","Fairy",null,"B"],
-  ["Milotic","Water",null,"B"],
-  ["Miltank","Normal",null,"S"],
-  ["Mime Jr.","Psychic","Fairy","S"],
-  ["Mimikyu","Ghost","Fairy","B"],
-  ["Minccino","Normal",null,"B"],
-  ["Minior","Rock","Flying","R"],
-  ["Minun","Electric",null,"R"],
-  ["Miraidon","Electric","Dragon","R"],
-  ["Misdreavus","Ghost",null,"R"],
-  ["Mismagius","Ghost",null,"R"],
-  ["Moltres","Fire","Flying","S"],
-  ["Monferno","Fire","Fighting","R"],
-  ["Morelull","Grass","Fairy","S"],
-  ["Morgrem","Dark","Fairy","B"],
-  ["Morpeko","Electric","Dark","B"],
-  ["Mr. Mime","Ice","Psychic","S"],
-  ["Mr. Rime","Ice","Psychic","S"],
-  ["Mudbray","Ground",null,"B"],
-  ["Mudkip","Water",null,"R"],
-  ["Mudsdale","Ground",null,"B"],
-  ["Muk","Poison",null,"R"],
-  ["Munchlax","Normal",null,"B"],
-  ["Munkidori","Poison","Psychic","R"],
-  ["Munna","Psychic",null,"S"],
-  ["Murkrow","Dark","Flying","R"],
-  ["Musharna","Psychic",null,"S"],
-  ["Nacli","Rock",null,"R"],
-  ["Naclstack","Rock",null,"R"],
-  ["Natu","Psychic","Flying","S"],
-  ["Necrozma","Psychic",null,"S"],
-  ["Nickit","Dark",null,"S"],
-  ["Nidoking","Poison","Ground","S"],
-  ["Nidoqueen","Poison","Ground","S"],
-  ["Nidoran-F","Poison",null,"S"],
-  ["Nidoran-M","Poison",null,"S"],
-  ["Nidorina","Poison",null,"S"],
-  ["Nidorino","Poison",null,"S"],
-  ["Nihilego","Rock","Poison","S"],
-  ["Nincada","Bug","Ground","S"],
-  ["Ninetales","Fire",null,"B"],
-  ["Ninjask","Bug","Flying","S"],
-  ["Noctowl","Normal","Flying","B"],
-  ["Noibat","Flying","Dragon","B"],
-  ["Noivern","Flying","Dragon","B"],
-  ["Nosepass","Rock",null,"R"],
-  ["Numel","Fire","Ground","R"],
-  ["Nuzleaf","Grass","Dark","B"],
-  ["Nymble","Bug",null,"R"],
-  ["Obstagoon","Dark","Normal","S"],
-  ["Octillery","Water",null,"S"],
-  ["Oddish","Grass","Poison","B"],
-  ["Ogerpon","Grass",null,"R"],
-  ["Oinkologne","Normal",null,"R"],
-  ["Okidogi","Poison","Fighting","R"],
-  ["Omanyte","Rock","Water","S"],
-  ["Omastar","Rock","Water","S"],
-  ["Onix","Rock","Ground","S"],
-  ["Oranguru","Normal","Psychic","B"],
-  ["Orbeetle","Bug","Psychic","S"],
-  ["Oricorio","Fire","Flying","R"],
-  ["Orthworm","Steel",null,"R"],
-  ["Oshawott","Water",null,"R"],
-  ["Overqwil","Dark","Poison","R"],
-  ["Pachirisu","Electric",null,"R"],
-  ["Palafin","Water",null,"R"],
-  ["Palkia","Water","Dragon","S"],
-  ["Palossand","Ghost","Ground","B"],
-  ["Palpitoad","Water","Ground","S"],
-  ["Pancham","Fighting",null,"S"],
-  ["Pangoro","Fighting","Dark","S"],
-  ["Passimian","Fighting",null,"B"],
-  ["Pawmi","Electric",null,"R"],
-  ["Pawmo","Electric","Fighting","R"],
-  ["Pawmot","Electric","Fighting","R"],
-  ["Pawniard","Dark","Steel","B"],
-  ["Pecharunt","Poison","Ghost","R"],
-  ["Pelipper","Water","Flying","B"],
-  ["Perrserker","Steel",null,"S"],
-  ["Persian","Normal",null,"B"],
-  ["Petilil","Grass",null,"B"],
-  ["Phanpy","Ground",null,"R"],
-  ["Phantump","Ghost","Grass","B"],
-  ["Pheromosa","Bug","Fighting","S"],
-  ["Pichu","Electric",null,"B"],
-  ["Pidove","Normal","Flying","S"],
-  ["Pignite","Fire","Fighting","R"],
-  ["Pikachu","Electric",null,"B"],
-  ["Pikipek","Normal","Flying","R"],
-  ["Piloswine","Ice","Ground","B"],
-  ["Pincurchin","Electric",null,"B"],
-  ["Pineco","Bug",null,"R"],
-  ["Pinsir","Bug",null,"S"],
-  ["Piplup","Water",null,"R"],
-  ["Plusle","Electric",null,"R"],
-  ["Politoed","Water",null,"B"],
-  ["Poliwag","Water",null,"B"],
-  ["Poliwhirl","Water",null,"B"],
-  ["Poliwrath","Water","Fighting","B"],
-  ["Poltchageist","Grass","Ghost","R"],
-  ["Polteageist","Ghost",null,"B"],
-  ["Ponyta","Psychic",null,"S"],
-  ["Poochyena","Dark",null,"R"],
-  ["Popplio","Water",null,"R"],
-  ["Porygon","Normal",null,"B"],
-  ["Porygon-Z","Normal",null,"B"],
-  ["Porygon2","Normal",null,"B"],
-  ["Primarina","Water","Fairy","R"],
-  ["Primeape","Fighting",null,"R"],
-  ["Prinplup","Water",null,"R"],
-  ["Probopass","Rock","Steel","R"],
-  ["Psyduck","Water",null,"B"],
-  ["Pumpkaboo","Ghost","Grass","S"],
-  ["Pupitar","Rock","Ground","B"],
-  ["Purrloin","Dark",null,"S"],
-  ["Pyroar","Fire","Normal","R"],
-  ["Pyukumuku","Water",null,"S"],
-  ["Quagsire","Water","Ground","B"],
-  ["Quaquaval","Water","Fighting","R"],
-  ["Quaxly","Water",null,"R"],
-  ["Quaxwell","Water",null,"R"],
-  ["Quilava","Fire",null,"R"],
-  ["Quilladin","Grass",null,"R"],
-  ["Qwilfish","Water","Poison","B"],
-  ["Raboot","Fire",null,"B"],
-  ["Rabsca","Bug","Psychic","R"],
-  ["Raging Bolt","Electric","Dragon","R"],
-  ["Raichu","Electric",null,"B"],
-  ["Raikou","Electric",null,"S"],
-  ["Ralts","Psychic","Fairy","B"],
-  ["Rampardos","Rock",null,"R"],
-  ["Rapidash","Psychic","Fairy","S"],
-  ["Rayquaza","Dragon","Flying","S"],
-  ["Regice","Ice",null,"S"],
-  ["Regidrago","Dragon",null,"S"],
-  ["Regieleki","Electric",null,"S"],
-  ["Regigigas","Normal",null,"S"],
-  ["Regirock","Rock",null,"S"],
-  ["Registeel","Steel",null,"S"],
-  ["Relicanth","Water","Rock","S"],
-  ["Rellor","Bug",null,"R"],
-  ["Remoraid","Water",null,"S"],
-  ["Reshiram","Dragon","Fire","S"],
-  ["Reuniclus","Psychic",null,"B"],
-  ["Revavroom","Steel","Poison","R"],
-  ["Rhydon","Ground","Rock","B"],
-  ["Rhyhorn","Ground","Rock","B"],
-  ["Rhyperior","Ground","Rock","B"],
-  ["Ribombee","Bug","Fairy","B"],
-  ["Rillaboom","Grass",null,"B"],
-  ["Riolu","Fighting",null,"B"],
-  ["Roaring Moon","Dragon","Dark","R"],
-  ["Rockruff","Rock",null,"B"],
-  ["Roggenrola","Rock",null,"S"],
-  ["Rolycoly","Rock",null,"B"],
-  ["Rookidee","Flying",null,"B"],
-  ["Roselia","Grass","Poison","S"],
-  ["Roserade","Grass","Poison","S"],
-  ["Rotom","Electric","Ghost","B"],
-  ["Rowlet","Grass","Flying","R"],
-  ["Rufflet","Normal","Flying","B"],
-  ["Runerigus","Ground","Ghost","S"],
-  ["Sableye","Dark","Ghost","B"],
-  ["Salamence","Dragon","Flying","B"],
-  ["Salandit","Poison","Fire","B"],
-  ["Salazzle","Poison","Fire","B"],
-  ["Samurott","Water",null,"R"],
-  ["Sandaconda","Ground",null,"B"],
-  ["Sandile","Ground","Dark","B"],
-  ["Sandshrew","Ground",null,"B"],
-  ["Sandslash","Ground",null,"B"],
-  ["Sandy Shocks","Electric","Ground","R"],
-  ["Sandygast","Ghost","Ground","B"],
-  ["Sawk","Fighting",null,"S"],
-  ["Sawsbuck","Normal","Grass","R"],
-  ["Scatterbug","Bug",null,"R"],
-  ["Sceptile","Grass",null,"R"],
-  ["Scizor","Bug","Steel","B"],
-  ["Scolipede","Bug","Poison","S"],
-  ["Scorbunny","Fire",null,"B"],
-  ["Scovillain","Grass","Fire","R"],
-  ["Scrafty","Dark","Fighting","B"],
-  ["Scraggy","Dark","Fighting","B"],
-  ["Scream Tail","Fairy","Psychic","R"],
-  ["Scyther","Bug","Flying","B"],
-  ["Seadra","Water",null,"B"],
-  ["Seaking","Water",null,"S"],
-  ["Sealeo","Ice","Water","S"],
-  ["Seedot","Grass",null,"B"],
-  ["Seel","Water",null,"R"],
-  ["Seismitoad","Water","Ground","S"],
-  ["Sentret","Normal",null,"R"],
-  ["Serperior","Grass",null,"R"],
-  ["Servine","Grass",null,"R"],
-  ["Seviper","Poison",null,"R"],
-  ["Sewaddle","Bug","Grass","R"],
-  ["Sharpedo","Water","Dark","S"],
-  ["Shedinja","Bug","Ghost","S"],
-  ["Shelgon","Dragon",null,"B"],
-  ["Shellder","Water",null,"B"],
-  ["Shellos","Water",null,"B"],
-  ["Shelmet","Bug",null,"S"],
-  ["Shieldon","Rock","Steel","R"],
-  ["Shiftry","Grass","Dark","B"],
-  ["Shiinotic","Grass","Fairy","S"],
-  ["Shinx","Electric",null,"B"],
-  ["Shroodle","Poison","Normal","R"],
-  ["Shroomish","Grass",null,"R"],
-  ["Shuckle","Bug","Rock","S"],
-  ["Shuppet","Ghost",null,"R"],
-  ["Sigilyph","Psychic","Flying","S"],
-  ["Silicobra","Ground",null,"B"],
-  ["Silvally","Normal",null,"S"],
-  ["Sinistcha","Grass","Ghost","R"],
-  ["Sinistea","Ghost",null,"B"],
-  ["Sirfetch'd","Fighting",null,"S"],
-  ["Sizzlipede","Fire","Bug","S"],
-  ["Skarmory","Steel","Flying","B"],
-  ["Skeledirge","Fire","Ghost","R"],
-  ["Skiddo","Grass",null,"R"],
-  ["Skiploom","Grass","Flying","R"],
-  ["Skorupi","Poison","Bug","S"],
-  ["Skrelp","Poison","Water","B"],
-  ["Skuntank","Poison","Dark","B"],
-  ["Skwovet","Normal",null,"B"],
-  ["Slaking","Normal",null,"R"],
-  ["Slakoth","Normal",null,"R"],
-  ["Sliggoo","Dragon",null,"B"],
-  ["Slither Wing","Bug","Fighting","R"],
-  ["Slowbro","Poison","Psychic","B"],
-  ["Slowking","Poison","Psychic","B"],
-  ["Slowpoke","Psychic",null,"B"],
-  ["Slugma","Fire",null,"R"],
-  ["Slurpuff","Fairy",null,"S"],
-  ["Smeargle","Normal",null,"R"],
-  ["Smoliv","Grass","Normal","R"],
-  ["Smoochum","Ice","Psychic","S"],
-  ["Sneasel","Dark","Ice","B"],
-  ["Snivy","Grass",null,"R"],
-  ["Snom","Ice","Bug","B"],
-  ["Snorlax","Normal",null,"B"],
-  ["Snorunt","Ice",null,"B"],
-  ["Snover","Grass","Ice","B"],
-  ["Snubbull","Fairy",null,"R"],
-  ["Sobble","Water",null,"B"],
-  ["Solgaleo","Psychic","Steel","S"],
-  ["Solosis","Psychic",null,"B"],
-  ["Solrock","Rock","Psychic","S"],
-  ["Spectrier","Ghost",null,"S"],
-  ["Spewpa","Bug",null,"R"],
-  ["Spheal","Ice","Water","S"],
-  ["Spidops","Bug",null,"R"],
-  ["Spinarak","Bug","Poison","R"],
-  ["Spiritomb","Ghost","Dark","B"],
-  ["Spoink","Psychic",null,"R"],
-  ["Sprigatito","Grass",null,"R"],
-  ["Spritzee","Fairy",null,"S"],
-  ["Squawkabilly","Normal","Flying","R"],
-  ["Squirtle","Water",null,"B"],
-  ["Stakataka","Rock","Steel","S"],
-  ["Stantler","Normal",null,"R"],
-  ["Staraptor","Normal","Flying","R"],
-  ["Staravia","Normal","Flying","R"],
-  ["Starly","Normal","Flying","R"],
-  ["Starmie","Water","Psychic","S"],
-  ["Staryu","Water",null,"S"],
-  ["Steelix","Steel","Ground","S"],
-  ["Steenee","Grass",null,"B"],
-  ["Stonjourner","Rock",null,"B"],
-  ["Stoutland","Normal",null,"S"],
-  ["Stufful","Normal","Fighting","S"],
-  ["Stunfisk","Ground","Steel","S"],
-  ["Stunky","Poison","Dark","B"],
-  ["Sudowoodo","Rock",null,"B"],
-  ["Suicune","Water",null,"S"],
-  ["Sunflora","Grass",null,"R"],
-  ["Sunkern","Grass",null,"R"],
-  ["Surskit","Bug","Water","R"],
-  ["Swablu","Normal","Flying","B"],
-  ["Swadloon","Bug","Grass","R"],
-  ["Swalot","Poison",null,"R"],
-  ["Swampert","Water","Ground","R"],
-  ["Swanna","Water","Flying","R"],
-  ["Swinub","Ice","Ground","B"],
-  ["Swirlix","Fairy",null,"S"],
-  ["Swoobat","Psychic","Flying","S"],
-  ["Sylveon","Fairy",null,"B"],
-  ["Tadbulb","Electric",null,"R"],
-  ["Talonflame","Fire","Flying","B"],
-  ["Tandemaus","Normal",null,"R"],
-  ["Tangela","Grass",null,"S"],
-  ["Tangrowth","Grass",null,"S"],
-  ["Tapu Bulu","Grass","Fairy","S"],
-  ["Tapu Fini","Water","Fairy","S"],
-  ["Tapu Koko","Electric","Fairy","S"],
-  ["Tapu Lele","Psychic","Fairy","S"],
-  ["Tarountula","Bug",null,"R"],
-  ["Tatsugiri","Dragon","Water","R"],
-  ["Tauros","Normal",null,"B"],
-  ["Teddiursa","Normal",null,"R"],
-  ["Tentacool","Water","Poison","B"],
-  ["Tentacruel","Water","Poison","B"],
-  ["Tepig","Fire",null,"R"],
-  ["Terapagos","Normal",null,"R"],
-  ["Terrakion","Rock","Fighting","S"],
-  ["Thievul","Dark",null,"S"],
-  ["Throh","Fighting",null,"S"],
-  ["Thundurus","Electric","Flying","S"],
-  ["Thwackey","Grass",null,"B"],
-  ["Timburr","Fighting",null,"B"],
-  ["Ting-Lu","Dark","Ground","R"],
-  ["Tinkatink","Fairy","Steel","R"],
-  ["Tinkaton","Fairy","Steel","R"],
-  ["Tinkatuff","Fairy","Steel","R"],
-  ["Tirtouga","Water","Rock","S"],
-  ["Toedscool","Ground","Grass","R"],
-  ["Toedscruel","Ground","Grass","R"],
-  ["Togedemaru","Electric","Steel","S"],
-  ["Togekiss","Fairy","Flying","S"],
-  ["Togepi","Fairy",null,"S"],
-  ["Togetic","Fairy","Flying","S"],
-  ["Torchic","Fire",null,"R"],
-  ["Torkoal","Fire",null,"B"],
-  ["Tornadus","Flying",null,"S"],
-  ["Torracat","Fire",null,"R"],
-  ["Torterra","Grass","Ground","R"],
-  ["Totodile","Water",null,"R"],
-  ["Toucannon","Normal","Flying","R"],
-  ["Toxapex","Poison","Water","B"],
-  ["Toxel","Electric","Poison","B"],
-  ["Toxicroak","Poison","Fighting","B"],
-  ["Toxtricity","Electric","Poison","B"],
-  ["Tranquill","Normal","Flying","S"],
-  ["Trapinch","Ground",null,"B"],
-  ["Treecko","Grass",null,"R"],
-  ["Trevenant","Ghost","Grass","B"],
-  ["Tropius","Grass","Flying","R"],
-  ["Trubbish","Poison",null,"S"],
-  ["Trumbeak","Normal","Flying","R"],
-  ["Tsareena","Grass",null,"B"],
-  ["Turtonator","Fire","Dragon","S"],
-  ["Turtwig","Grass",null,"R"],
-  ["Tympole","Water",null,"S"],
-  ["Tynamo","Electric",null,"R"],
-  ["Type: Null","Normal",null,"S"],
-  ["Typhlosion","Fire",null,"R"],
-  ["Tyranitar","Rock","Dark","B"],
-  ["Tyrantrum","Rock","Dragon","S"],
-  ["Tyrogue","Fighting",null,"B"],
-  ["Tyrunt","Rock","Dragon","S"],
-  ["Umbreon","Dark",null,"B"],
-  ["Unfezant","Normal","Flying","S"],
-  ["Ursaluna","Ground","Normal","R"],
-  ["Ursaring","Normal",null,"R"],
-  ["Urshifu","Fighting","Dark","S"],
-  ["Uxie","Psychic",null,"S"],
-  ["Vanillish","Ice",null,"S"],
-  ["Vanillite","Ice",null,"S"],
-  ["Vanilluxe","Ice",null,"S"],
-  ["Vaporeon","Water",null,"B"],
-  ["Varoom","Steel","Poison","R"],
-  ["Veluza","Water","Psychic","R"],
-  ["Venipede","Bug","Poison","S"],
-  ["Venomoth","Bug","Poison","R"],
-  ["Venonat","Bug","Poison","R"],
-  ["Venusaur","Grass","Poison","B"],
-  ["Vespiquen","Bug","Flying","B"],
-  ["Vibrava","Ground","Dragon","B"],
-  ["Victreebel","Grass","Poison","R"],
-  ["Vigoroth","Normal",null,"R"],
-  ["Vikavolt","Bug","Electric","B"],
-  ["Vileplume","Grass","Poison","B"],
-  ["Virizion","Grass","Fighting","S"],
-  ["Vivillon","Bug","Flying","R"],
-  ["Volbeat","Bug",null,"R"],
-  ["Volcarona","Bug","Fire","B"],
-  ["Voltorb","Electric",null,"R"],
-  ["Vullaby","Dark","Flying","B"],
-  ["Vulpix","Fire",null,"B"],
-  ["Wailmer","Water",null,"S"],
-  ["Wailord","Water",null,"S"],
-  ["Walking Wake","Water","Dragon","R"],
-  ["Walrein","Ice","Water","S"],
-  ["Wartortle","Water",null,"B"],
-  ["Wattrel","Electric","Flying","R"],
-  ["Weavile","Dark","Ice","B"],
-  ["Weepinbell","Grass","Poison","R"],
-  ["Weezing","Poison","Fairy","B"],
-  ["Whimsicott","Grass","Fairy","B"],
-  ["Whirlipede","Bug","Poison","S"],
-  ["Whiscash","Water","Ground","B"],
-  ["Whismur","Normal",null,"S"],
-  ["Wigglytuff","Normal","Fairy","B"],
-  ["Wiglett","Water",null,"R"],
-  ["Wimpod","Bug","Water","S"],
-  ["Wingull","Water","Flying","B"],
-  ["Wishiwashi","Water",null,"S"],
-  ["Wo-Chien","Dark","Grass","R"],
-  ["Wobbuffet","Psychic",null,"S"],
-  ["Woobat","Psychic","Flying","S"],
-  ["Wooloo","Normal",null,"S"],
-  ["Wooper","Water","Ground","B"],
-  ["Wugtrio","Water",null,"R"],
-  ["Wynaut","Psychic",null,"S"],
-  ["Xatu","Psychic","Flying","S"],
-  ["Xerneas","Fairy",null,"S"],
-  ["Xurkitree","Electric",null,"S"],
-  ["Yamask","Ground","Ghost","S"],
-  ["Yamper","Electric",null,"S"],
-  ["Yanma","Bug","Flying","R"],
-  ["Yanmega","Bug","Flying","R"],
-  ["Yungoos","Normal",null,"R"],
-  ["Yveltal","Dark","Flying","S"],
-  ["Zacian","Fairy",null,"S"],
-  ["Zamazenta","Fighting",null,"S"],
-  ["Zangoose","Normal",null,"R"],
-  ["Zapdos","Electric","Flying","S"],
-  ["Zarude","Dark","Grass","S"],
-  ["Zebstrika","Electric",null,"R"],
-  ["Zekrom","Dragon","Electric","S"],
-  ["Zigzagoon","Dark","Normal","S"],
-  ["Zoroark","Dark",null,"B"],
-  ["Zorua","Dark",null,"B"],
-  ["Zubat","Poison","Flying","S"],
-  ["Zweilous","Dark","Dragon","B"],
-  ["Zygarde","Dragon","Ground","S"],
-];
+// RAW_POKEMON is defined in pokedex.js (loaded before this script)
+
 
 // Deduplicate by name (keep first occurrence)
 const POKEMON = [];
@@ -1247,6 +301,311 @@ function suggestPokemon(team, game, limit = 8) {
   return scored.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
+// ── PLAIN-ENGLISH SUMMARY ENGINE ─────────────────────────────────────────────
+// Rule-based. Deterministic, no network, no API. Fixed severity vocabulary:
+//   critical | notable | minor | clean
+
+function listPhrase(arr, cap = 5) {
+  if (arr.length === 0) return "";
+  if (arr.length === 1) return arr[0];
+  if (arr.length > cap) {
+    const shown = arr.slice(0, cap);
+    const rest = arr.length - cap;
+    return `${shown.join(", ")}, and ${rest} more`;
+  }
+  if (arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+  return `${arr.slice(0, -1).join(", ")}, and ${arr[arr.length - 1]}`;
+}
+
+function coverageSummary(defense, offense, teamSize, game) {
+  // Exposed = nothing on the team resists it (best multiplier >= 2)
+  const exposed = defense
+    .filter(d => d.bestMult >= 2)
+    .sort((a, b) => (b.bestMult - a.bestMult) || (b.weakCount - a.weakCount));
+  // Crowded = many members weak, even if something resists
+  const crowded = defense.filter(d => d.weakCount >= Math.ceil(teamSize / 2) && d.bestMult < 2);
+  const uncovered = offense.filter(o => !o.covered).map(o => o.type);
+
+  // Severity weighs BOTH defensive holes and offensive gaps.
+  let severity, headline;
+  if (exposed.length >= 3) {
+    severity = "critical";
+    headline = `${exposed.length} attack types can hit your whole team hard with nothing to switch into.`;
+  } else if (exposed.length > 0 && uncovered.length >= 6) {
+    severity = "critical";
+    headline = `${exposed.length === 1 ? "One attack type gets" : `${exposed.length} attack types get`} through unresisted, and you can't hit ${uncovered.length} types hard — problems on both sides.`;
+  } else if (exposed.length > 0) {
+    severity = "notable";
+    headline = `${exposed.length === 1 ? "One attack type gets" : `${exposed.length} attack types get`} through your team unresisted.`;
+  } else if (uncovered.length >= 4) {
+    severity = "notable";
+    headline = `Defensively you're airtight, but there are ${uncovered.length} types you can't hit hard.`;
+  } else if (crowded.length > 0 || uncovered.length > 0) {
+    severity = "minor";
+    headline = exposed.length === 0 && crowded.length === 0
+      ? "Defensively solid, with a few gaps on the attacking side."
+      : "Nothing gets through unresisted, but a few types hit several of your team at once.";
+  } else {
+    severity = "clean";
+    headline = "No defensive holes and no coverage gaps — this team is balanced on type alone.";
+  }
+
+  // ── READ (factual)
+  const read = [];
+  read.push(headline);
+  if (exposed.length > 0) {
+    const worst = exposed[0];
+    read.push(
+      `Worst of them is ${worst.type}: ${worst.weakCount === teamSize ? `all ${teamSize} of your team take` : `${worst.weakCount} of your ${teamSize} take`} super-effective damage from it and none resist it.`
+    );
+    if (exposed.length > 1) {
+      read.push(`Also unresisted: ${listPhrase(exposed.slice(1).map(e => e.type))}.`);
+    }
+  }
+  if (crowded.length > 0) {
+    read.push(
+      `${listPhrase(crowded.map(c => c.type))} ${crowded.length === 1 ? "hits" : "hit"} half or more of your team, though you do have a switch-in.`
+    );
+  }
+  if (uncovered.length > 0) {
+    read.push(
+      `Offensively you have no same-type attack that's super-effective against ${listPhrase(uncovered)} — expect those fights to be slow.`
+    );
+  } else {
+    read.push("Offensively you can hit every type super-effectively with a same-type attack.");
+  }
+
+  // ── ACT (opinionated)
+  const act = [];
+  if (exposed.length > 0) {
+    const worst = exposed[0];
+    act.push(
+      `Priority is a ${worst.type} resist — that's the hole most likely to lose you a fight. The Suggestions tab ranks candidates that plug it.`
+    );
+  }
+  if (uncovered.length >= 3) {
+    act.push(
+      `${act.length ? "You're also missing" : "Your gap is"} super-effective coverage on ${uncovered.length} types (${listPhrase(uncovered)}). A coverage move from your TM/TR stock is usually a cheaper fix than swapping a team member.`
+    );
+  } else if (uncovered.length > 0) {
+    act.push(
+      `For ${listPhrase(uncovered)}, a coverage move is likely easier than changing your team.`
+    );
+  }
+  if (exposed.length === 0 && uncovered.length === 0 && crowded.length === 0) {
+    act.push("No structural gaps to fix. Tune movesets, levels, and held items rather than swapping members.");
+  }
+  if (teamSize < 6) {
+    act.push(`You have ${6 - teamSize} open ${6 - teamSize === 1 ? "slot" : "slots"} — cheapest place to fix any of the above.`);
+  }
+
+  return { severity, read, act };
+}
+
+function matchupSummary(analysis, opponentName, teamSize) {
+  const total = analysis.length;
+  // A mon is "answered" if someone on your team hits it super-effectively
+  const answered = analysis.filter(a => a.matchups.some(m => m.myAtk > 1));
+  // A mon is "threatening" if it hits someone super-effectively AND you can't hit it back hard
+  const problems = analysis.filter(
+    a => !a.matchups.some(m => m.myAtk > 1) && a.matchups.some(m => m.theirAtk > 1)
+  );
+  // Count how often each of your mons is the recommended lead
+  const leadCounts = {};
+  analysis.forEach(a => {
+    leadCounts[a.bestCounter.myMon] = (leadCounts[a.bestCounter.myMon] || 0) + 1;
+  });
+  const topLead = Object.entries(leadCounts).sort((a, b) => b[1] - a[1])[0];
+
+  let severity, headline;
+  const ratio = answered.length / total;
+  if (problems.length === 0 && ratio === 1) {
+    severity = "clean";
+    headline = `You have a super-effective answer to all ${total} of ${opponentName}'s Pokémon.`;
+  } else if (problems.length === 0) {
+    severity = "minor";
+    headline = `You answer ${answered.length} of ${total}, and nothing on their side outright threatens you unanswered.`;
+  } else if (problems.length === 1) {
+    severity = "notable";
+    headline = `You answer ${answered.length} of ${total}, but one of theirs threatens you with no super-effective reply.`;
+  } else {
+    severity = "critical";
+    headline = `${problems.length} of ${opponentName}'s ${total} threaten your team with no super-effective reply from you.`;
+  }
+
+  // ── READ (factual)
+  const read = [];
+  read.push(headline);
+  if (topLead) {
+    read.push(
+      `${topLead[0]} is the best answer to ${topLead[1]} of their ${total}${topLead[1] > 1 ? " — your most broadly useful pick here" : ""}.`
+    );
+  }
+  if (problems.length > 0) {
+    read.push(`No super-effective answer to: ${listPhrase(problems.map(p => p.opp.name))}.`);
+  }
+
+  // ── ACT (opinionated)
+  const act = [];
+  if (topLead && topLead[1] > 1) {
+    act.push(`Lead ${topLead[0]}. It covers the most of their roster, so it forces them to react first.`);
+  } else if (topLead) {
+    act.push(`No single lead covers much here — expect to switch a lot. ${topLead[0]} is the safest opener.`);
+  }
+  if (problems.length > 0) {
+    act.push(
+      `For ${listPhrase(problems.map(p => p.opp.name))} you'll be trading neutral damage, so bring your bulkiest member in and win on stats rather than type advantage. A coverage move on any team member would turn ${problems.length === 1 ? "that fight" : "those fights"} around.`
+    );
+  }
+  if (severity === "clean") {
+    act.push("This matchup is in your favour on type alone. Levels and movesets are what's left to get right.");
+  }
+
+  return { severity, read, act };
+}
+
+function suggestionsSummary(suggestions, defense, offense, game) {
+  if (suggestions.length === 0) return null;
+  const top = suggestions[0];
+  const weakTypes = defense.filter(d => d.bestMult >= 2).map(d => d.type);
+  const uncovered = offense.filter(o => !o.covered).map(o => o.type);
+
+  const topResists = weakTypes.filter(wt => getDefensiveMultiplier(wt, top.types) < 1);
+  const topCovers = uncovered.filter(ut => top.types.some(t => getEffectiveness(t, ut) > 1));
+  const doesBoth = topResists.length > 0 && topCovers.length > 0;
+
+  // How many of the listed candidates solve both problems?
+  const bothCount = suggestions.filter(s => {
+    const r = weakTypes.some(wt => getDefensiveMultiplier(wt, s.types) < 1);
+    const c = uncovered.some(ut => s.types.some(t => getEffectiveness(t, ut) > 1));
+    return r && c;
+  }).length;
+
+  let severity, headline;
+  if (weakTypes.length === 0 && uncovered.length === 0) {
+    severity = "clean";
+    headline = "Your team has no defensive holes or coverage gaps — these are ranked on general type value only.";
+  } else if (doesBoth) {
+    severity = "notable";
+    headline = `${top.name} is the strongest fit: it patches a defensive hole and a coverage gap at once.`;
+  } else {
+    severity = "minor";
+    headline = `${top.name} ranks first, but no available Pokémon fixes both your defensive and offensive gaps together.`;
+  }
+
+  // ── READ (factual)
+  const read = [];
+  read.push(headline);
+  if (topResists.length > 0) {
+    read.push(`It resists ${listPhrase(topResists)}, which nothing on your team currently does.`);
+  }
+  if (topCovers.length > 0) {
+    read.push(`It ${topResists.length > 0 ? "also " : ""}gives you super-effective coverage on ${listPhrase(topCovers)}, which your team currently lacks.`);
+  }
+  read.push(
+    `Ranking is based on type matchups only — it doesn't account for base stats, abilities, held items, or what you can realistically catch right now.`
+  );
+
+  // ── ACT (opinionated)
+  const act = [];
+  if (doesBoth) {
+    act.push(
+      `Take ${top.name} if you can get one.${bothCount > 1 ? ` ${bothCount - 1} other ${bothCount - 1 === 1 ? "option" : "options"} below also solve both, so pick whichever you prefer or already own.` : " Nothing else on this list solves both problems."}`
+    );
+  } else if (weakTypes.length > 0 && uncovered.length > 0) {
+    act.push(
+      `Since no single addition fixes everything, decide which hurts more: the defensive hole (you lose Pokémon) or the coverage gap (fights drag on). Defensive holes are usually the more urgent of the two mid-playthrough.`
+    );
+  } else if (weakTypes.length > 0) {
+    act.push(
+      `Your only real problem is defensive. Take whichever option above resists ${listPhrase(weakTypes)} and don't overthink the offensive side.`
+    );
+  } else if (uncovered.length > 0) {
+    act.push(
+      `You have no defensive holes, so this is purely about offence. A coverage move on an existing member is usually cheaper than adding ${top.name} just for the typing — only take it if you'd enjoy using it.`
+    );
+  } else {
+    act.push("Nothing here is a fix for a real problem — only add one if you actually like it.");
+  }
+  act.push("Whatever you pick, re-check the Coverage tab afterwards; adding a member can open a new weakness while closing another.");
+
+  return { severity, read, act };
+}
+
+// ── SUMMARY CARD ─────────────────────────────────────────────────────────────
+const SEVERITY_META = {
+  critical: { label: "CRITICAL",  color: "#e05040", lightColor: "#c23b2a" },
+  notable:  { label: "NOTABLE",   color: "#f0a030", lightColor: "#b06a12" },
+  minor:    { label: "MINOR",     color: "#6890f0", lightColor: "#3a63c4" },
+  clean:    { label: "CLEAN",     color: "#3e9e5f", lightColor: "#2a7a45" },
+};
+
+function SummaryCard({ summary, theme }) {
+  if (!summary) return null;
+  const meta = SEVERITY_META[summary.severity] || SEVERITY_META.minor;
+  const accent = theme.dark ? meta.color : meta.lightColor;
+
+  return (
+    <div style={{
+      background: theme.panel,
+      border: `1px solid ${theme.border}`,
+      borderLeft: `3px solid ${accent}`,
+      borderRadius: 8,
+      padding: "14px 16px",
+      marginBottom: 20,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: 1.5,
+          color: "#fff",
+          background: accent,
+          padding: "2px 7px",
+          borderRadius: 3,
+        }}>{meta.label}</span>
+        <span style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: 10,
+          letterSpacing: 1.5,
+          color: theme.textDimmer,
+          textTransform: "uppercase",
+        }}>In plain English</span>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{
+          fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 1.5,
+          color: theme.textDimmer, textTransform: "uppercase", marginBottom: 5,
+        }}>What the numbers say</div>
+        {summary.read.map((line, i) => (
+          <p key={i} style={{
+            margin: "0 0 5px", fontSize: 13.5, lineHeight: 1.55, color: theme.text,
+          }}>{line}</p>
+        ))}
+      </div>
+
+      {summary.act.length > 0 && (
+        <div style={{
+          borderTop: `1px solid ${theme.border2}`,
+          paddingTop: 10,
+        }}>
+          <div style={{
+            fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: 1.5,
+            color: theme.textDimmer, textTransform: "uppercase", marginBottom: 5,
+          }}>What I'd do — opinion, not fact</div>
+          {summary.act.map((line, i) => (
+            <p key={i} style={{
+              margin: "0 0 5px", fontSize: 13.5, lineHeight: 1.55, color: theme.textDim,
+            }}>{line}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── THEME ─────────────────────────────────────────────────────────────────
 function getTheme(dark) {
   return dark ? {
@@ -1450,6 +809,19 @@ function App() {
     });
   }, [opponent, activeTeam]);
 
+  const coverageSummaryData = useMemo(
+    () => (activeTeam.length ? coverageSummary(defense, offense, activeTeam.length, game) : null),
+    [defense, offense, activeTeam.length, game]
+  );
+  const matchupSummaryData = useMemo(
+    () => (opponentAnalysis && opponent ? matchupSummary(opponentAnalysis, opponent.name, activeTeam.length) : null),
+    [opponentAnalysis, opponent, activeTeam.length]
+  );
+  const suggestSummaryData = useMemo(
+    () => (suggestions.length ? suggestionsSummary(suggestions, defense, offense, game) : null),
+    [suggestions, defense, offense, game]
+  );
+
   return (
     <div style={{
       minHeight: "100vh", background: theme.bg, color: theme.text,
@@ -1566,6 +938,7 @@ function App() {
             {/* Coverage Tab */}
             {tab === "coverage" && (
               <div>
+                <SummaryCard summary={coverageSummaryData} theme={theme} />
                 <h3 style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: "#6890f0", margin: "0 0 8px" }}>
                   DEFENSIVE — Incoming Attacks
                 </h3>
@@ -1641,6 +1014,8 @@ function App() {
                   ))}
                 </select>
 
+                {opponentAnalysis && <SummaryCard summary={matchupSummaryData} theme={theme} />}
+
                 {opponentAnalysis && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {opponentAnalysis.map(({ opp, matchups, bestCounter }) => (
@@ -1698,6 +1073,7 @@ function App() {
                   <p style={{ color: theme.textDim, fontSize: 13 }}>No strong suggestions found.</p>
                 ) : (
                   <>
+                    <SummaryCard summary={suggestSummaryData} theme={theme} />
                     <p style={{ fontSize: 12, color: theme.textDimmer, margin: "0 0 12px" }}>
                       Ranked by how well they cover your defensive weaknesses and offensive gaps.
                     </p>
