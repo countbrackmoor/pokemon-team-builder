@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.0] - 2026-07-31
+
+### Added
+- Plain-English summary card at the top of the Coverage, Matchup, and Suggestions tabs.
+- Each card is split into two labelled blocks: **What the numbers say** (factual, derived directly from the type math) and **What I'd do** (explicitly marked as opinion, not fact).
+- Fixed severity vocabulary shown as a coloured badge on each card: `CRITICAL` / `NOTABLE` / `MINOR` / `CLEAN`.
+
+### Notes
+- Summaries are rule-based and deterministic — no LLM call, no network request, no API key. Consistent with the tool's no-backend design.
+- Coverage severity weighs both defensive holes and offensive gaps, so a team with no weaknesses but several uncovered types is no longer mislabelled as `CLEAN`.
+
 ## [1.1.0] - 2026-07-31
 
 ### Added
