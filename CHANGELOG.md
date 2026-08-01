@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.4.0] - 2026-08-01
+
+### Added
+- **Auto-Build Team button** (visible on all tabs, next to the team slots). Fills empty slots with the best type-coverage additions given whoever's already on the team — e.g. seed it with just Cinderace and it builds the rest of the team around that pick. If the team is completely empty, it seeds itself with the strongest solo defensive typing available in the current game, then greedily adds from there. Reuses the same scoring logic as the Suggestions tab, so results stay consistent with what that tab recommends. Never reorders or removes Pokémon already placed.
+- **Export CSV** — downloads the full team roster, defensive coverage (all 18 types), offensive/STAB coverage, and the plain-English Coverage summary as a single CSV file.
+- **Export Image** — downloads a PNG snapshot of the team + coverage summary (same data as the CSV), rendered via an off-screen card and captured with html2canvas. Available regardless of which tab is currently open.
+
+### Notes
+- Both export buttons are disabled until at least one Pokémon is on the team.
+- Auto-Build is disabled once all 6 slots are filled.
+- New dependency: html2canvas (via CDN, `unpkg.com/html2canvas@1.4.1`), used only for the image export.
+
 ## [1.3.0] - 2026-07-31
 
 ### Changed

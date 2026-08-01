@@ -9,6 +9,8 @@ Type coverage, matchup, and gap-suggestion tool for Pokémon Shield & Scarlet te
 - **Coverage** — pick up to 6 Pokémon and see full defensive (incoming attack) and offensive (STAB) type coverage.
 - **Matchup** — select a Shield or Scarlet gym leader / Elite Four / Champion and see per-Pokémon matchup breakdowns with a recommended lead.
 - **Suggestions** — ranks available Pokémon by how well they patch your team's defensive weaknesses and offensive gaps, with one-click add.
+- **Auto-Build Team** — one click fills empty slots with the best type-coverage additions given whoever's already picked, or builds a full team from scratch if none are picked yet. Tab-agnostic; visible next to the team slots at all times.
+- **Export** — download the team + full coverage breakdown as CSV or as a PNG image, regardless of which tab is open.
 
 Each tab opens with a plain-English summary card, split into **What the numbers say** (factual) and **What I'd do** (explicitly marked as opinion). Summaries are rule-based and deterministic — no LLM call, no network request.
 
@@ -16,7 +18,7 @@ Switching between Shield and Scarlet keeps your team intact. Any Pokémon not av
 
 ## Stack
 
-Single-file HTML page. React + Babel Standalone loaded via CDN (`unpkg.com`) — no build step, no backend. All data (Pokémon roster, type chart, opponent rosters) is embedded client-side; the Pokémon roster itself lives in `pokedex.js`, separate from app logic.
+Single-file HTML page. React + Babel Standalone loaded via CDN (`unpkg.com`) — no build step, no backend. All data (Pokémon roster, type chart, opponent rosters) is embedded client-side; the Pokémon roster itself lives in `pokedex.js`, separate from app logic. Image export uses html2canvas (also via CDN).
 
 ## Data source
 
@@ -24,7 +26,7 @@ Pokémon roster and typing pulled from a maintained spreadsheet (Shield: Galar/I
 
 ## Status
 
-Work in progress. Offensive analysis is STAB-only (no moveset awareness yet). Base stats, abilities, and held items aren't factored into suggestions or summaries. Opponent rosters should be spot-checked before relying on them for a real playthrough decision.
+Work in progress. Offensive analysis is STAB-only (no moveset awareness yet). Base stats, abilities, and held items aren't factored into suggestions, summaries, or auto-build. Opponent rosters should be spot-checked before relying on them for a real playthrough decision.
 
 ## Note on the repo/URL name
 
