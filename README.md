@@ -1,4 +1,4 @@
-# Team Builder
+# PokéTeamer
 
 Type coverage, matchup, and gap-suggestion tool for Pokémon Shield & Scarlet teams.
 
@@ -16,7 +16,7 @@ Switching between Shield and Scarlet keeps your team intact. Any Pokémon not av
 
 ## Stack
 
-Single-file HTML page. React + Babel Standalone loaded via CDN (`unpkg.com`) — no build step, no backend. All data (Pokémon roster, type chart, opponent rosters) is embedded client-side.
+Single-file HTML page. React + Babel Standalone loaded via CDN (`unpkg.com`) — no build step, no backend. All data (Pokémon roster, type chart, opponent rosters) is embedded client-side; the Pokémon roster itself lives in `pokedex.js`, separate from app logic.
 
 ## Data source
 
@@ -25,3 +25,7 @@ Pokémon roster and typing pulled from a maintained spreadsheet (Shield: Galar/I
 ## Status
 
 Work in progress. Offensive analysis is STAB-only (no moveset awareness yet). Base stats, abilities, and held items aren't factored into suggestions or summaries. Opponent rosters should be spot-checked before relying on them for a real playthrough decision.
+
+## Note on the repo/URL name
+
+The repo and live URL keep the `pokemon-team-builder` name for stability — only the display name and hub listing changed to PokéTeamer.

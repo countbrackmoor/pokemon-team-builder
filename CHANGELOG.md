@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.3.0] - 2026-07-31
+
+### Changed
+- Renamed the tool from "Team Builder" to "PokéTeamer" (page title and in-app header). Repo name and live URL (`/pokemon-team-builder/`) unchanged for link stability.
+- Moved the hub listing from the Productivity Apps section (small-card) to the Game Apps section (full project-card), matching the treatment given to the NMS Codex and Horrified toolkit.
+
 ## [1.2.1] - 2026-07-31
 
 ### Fixed
