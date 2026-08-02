@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.4.1] - 2026-08-01
+
+### Fixed
+- **Blank white page on load.** `handleExportCSV` (a `useCallback`) listed `coverageSummaryData` in its dependency array, but `coverageSummaryData` (a `useMemo`) was declared later in the component — a temporal dead zone `ReferenceError` on every render of `App`, silently crashing the whole page to blank white. Moved the `coverageSummaryData` declaration above `setSlot`/`handleExportCSV`/`handleAutoBuild` so it's initialized before anything references it. Same bug class as the one previously found in theSystem — all `useMemo` computations must be declared before any `useCallback`/`useMemo` that lists them as dependencies.
+
 ## [1.4.0] - 2026-08-01
 
 ### Added
