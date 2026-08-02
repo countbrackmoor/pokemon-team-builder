@@ -241,7 +241,6 @@ const OPPONENTS = {
 
 // ── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
 function analyzeTeamDefense(team) {
-  // For each attacking type, find best (lowest) multiplier across team
   return TYPES.map(atkType => {
     const matchups = team.map(p => ({
       name: p.name,
@@ -265,7 +264,6 @@ function analyzeTeamDefense(team) {
 }
 
 function analyzeTeamOffense(team) {
-  // For each defending type, check if any team member has STAB coverage
   return TYPES.map(defType => {
     const coverage = team.flatMap(p =>
       p.types.map(t => ({ name: p.name, atkType: t, mult: getEffectiveness(t, defType) }))
@@ -293,13 +291,11 @@ function suggestPokemon(team, game, limit = 8) {
 
   const scored = candidates.map(p => {
     let score = 0;
-    // Reward: resists team weaknesses
     for (const wt of weakTypes) {
       const mult = getDefensiveMultiplier(wt, p.types);
       if (mult === 0) score += 3;
       else if (mult < 1) score += 2;
     }
-    // Reward: STAB covers uncovered types
     for (const ut of uncoveredTypes) {
       for (const t of p.types) {
         if (getEffectiveness(t, ut) > 1) score += 1.5;
@@ -312,13 +308,7 @@ function suggestPokemon(team, game, limit = 8) {
 }
 
 // ── AUTO-BUILD ENGINE ─────────────────────────────────────────────────────────
-// Greedy, deterministic, type-only optimizer. No stats/abilities/movesets —
-// same limitation as the Suggestions tab, which this reuses.
-
 function soloDefensiveScore(p) {
-  // How good is this Pokémon's typing in isolation: reward resistances and
-  // immunities, penalize weaknesses. Used only to seed an empty team, since
-  // suggestPokemon() needs an existing team to compute against.
   let score = 0;
   for (const t of TYPES) {
     const m = getDefensiveMultiplier(t, p.types);
@@ -330,9 +320,6 @@ function soloDefensiveScore(p) {
 }
 
 function autoBuildTeam(currentTeam, game) {
-  // currentTeam: array of full Pokémon objects already valid for `game`.
-  // Returns an array (<=6) of full Pokémon objects: the original team plus
-  // greedily-chosen additions. Never removes or reorders what was passed in.
   let team = [...currentTeam];
 
   if (team.length === 0) {
@@ -414,9 +401,6 @@ function downloadBlob(content, mime, filename) {
 }
 
 // ── PLAIN-ENGLISH SUMMARY ENGINE ─────────────────────────────────────────────
-// Rule-based. Deterministic, no network, no API. Fixed severity vocabulary:
-//   critical | notable | minor | clean
-
 function listPhrase(arr, cap = 5) {
   if (arr.length === 0) return "";
   if (arr.length === 1) return arr[0];
@@ -430,15 +414,12 @@ function listPhrase(arr, cap = 5) {
 }
 
 function coverageSummary(defense, offense, teamSize, game) {
-  // Exposed = nothing on the team resists it (best multiplier >= 2)
   const exposed = defense
     .filter(d => d.bestMult >= 2)
     .sort((a, b) => (b.bestMult - a.bestMult) || (b.weakCount - a.weakCount));
-  // Crowded = many members weak, even if something resists
   const crowded = defense.filter(d => d.weakCount >= Math.ceil(teamSize / 2) && d.bestMult < 2);
   const uncovered = offense.filter(o => !o.covered).map(o => o.type);
 
-  // Severity weighs BOTH defensive holes and offensive gaps.
   let severity, headline;
   if (exposed.length >= 3) {
     severity = "critical";
@@ -462,7 +443,6 @@ function coverageSummary(defense, offense, teamSize, game) {
     headline = "No defensive holes and no coverage gaps — this team is balanced on type alone.";
   }
 
-  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (exposed.length > 0) {
@@ -487,7 +467,6 @@ function coverageSummary(defense, offense, teamSize, game) {
     read.push("Offensively you can hit every type super-effectively with a same-type attack.");
   }
 
-  // ── ACT (opinionated)
   const act = [];
   if (exposed.length > 0) {
     const worst = exposed[0];
@@ -516,13 +495,10 @@ function coverageSummary(defense, offense, teamSize, game) {
 
 function matchupSummary(analysis, opponentName, teamSize) {
   const total = analysis.length;
-  // A mon is "answered" if someone on your team hits it super-effectively
   const answered = analysis.filter(a => a.matchups.some(m => m.myAtk > 1));
-  // A mon is "threatening" if it hits someone super-effectively AND you can't hit it back hard
   const problems = analysis.filter(
     a => !a.matchups.some(m => m.myAtk > 1) && a.matchups.some(m => m.theirAtk > 1)
   );
-  // Count how often each of your mons is the recommended lead
   const leadCounts = {};
   analysis.forEach(a => {
     leadCounts[a.bestCounter.myMon] = (leadCounts[a.bestCounter.myMon] || 0) + 1;
@@ -545,7 +521,6 @@ function matchupSummary(analysis, opponentName, teamSize) {
     headline = `${problems.length} of ${opponentName}'s ${total} threaten your team with no super-effective reply from you.`;
   }
 
-  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (topLead) {
@@ -557,7 +532,6 @@ function matchupSummary(analysis, opponentName, teamSize) {
     read.push(`No super-effective answer to: ${listPhrase(problems.map(p => p.opp.name))}.`);
   }
 
-  // ── ACT (opinionated)
   const act = [];
   if (topLead && topLead[1] > 1) {
     act.push(`Lead ${topLead[0]}. It covers the most of their roster, so it forces them to react first.`);
@@ -586,7 +560,6 @@ function suggestionsSummary(suggestions, defense, offense, game) {
   const topCovers = uncovered.filter(ut => top.types.some(t => getEffectiveness(t, ut) > 1));
   const doesBoth = topResists.length > 0 && topCovers.length > 0;
 
-  // How many of the listed candidates solve both problems?
   const bothCount = suggestions.filter(s => {
     const r = weakTypes.some(wt => getDefensiveMultiplier(wt, s.types) < 1);
     const c = uncovered.some(ut => s.types.some(t => getEffectiveness(t, ut) > 1));
@@ -605,7 +578,6 @@ function suggestionsSummary(suggestions, defense, offense, game) {
     headline = `${top.name} ranks first, but no available Pokémon fixes both your defensive and offensive gaps together.`;
   }
 
-  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (topResists.length > 0) {
@@ -618,7 +590,6 @@ function suggestionsSummary(suggestions, defense, offense, game) {
     `Ranking is based on type matchups only — it doesn't account for base stats, abilities, held items, or what you can realistically catch right now.`
   );
 
-  // ── ACT (opinionated)
   const act = [];
   if (doesBoth) {
     act.push(
@@ -950,7 +921,6 @@ function App() {
 
   const isValidForGame = useCallback((p) => !p || availableIn(p, game), [game]);
 
-  // Only Pokémon valid for the current game feed the analysis engines.
   const activeTeam = team.filter(p => p && isValidForGame(p));
   const invalidSlots = team.filter(p => p && !isValidForGame(p));
 
@@ -961,6 +931,15 @@ function App() {
       ? suggestPokemon(activeTeam, game)
       : [],
     [activeTeam, game]
+  );
+
+  // Must be declared before any useCallback/useMemo below that lists it as a
+  // dependency (e.g. handleExportCSV) — referencing a const before its
+  // declaration throws a ReferenceError (temporal dead zone), which crashes
+  // the whole component silently on every render.
+  const coverageSummaryData = useMemo(
+    () => (activeTeam.length ? coverageSummary(defense, offense, activeTeam.length, game) : null),
+    [defense, offense, activeTeam.length, game]
   );
 
   const setSlot = useCallback((i, p) => {
@@ -1011,11 +990,9 @@ function App() {
     if (!opponent || !activeTeam.length) return null;
     return opponent.pokemon.map(opp => {
       const matchups = activeTeam.map(mine => {
-        // My offensive STAB vs their types
         const myAtk = Math.max(...mine.types.map(t =>
           opp.types.reduce((m, dt) => m * getEffectiveness(t, dt), 1)
         ));
-        // Their offensive STAB vs my types
         const theirAtk = Math.max(...opp.types.map(t =>
           mine.types.reduce((m, dt) => m * getEffectiveness(t, dt), 1)
         ));
@@ -1028,10 +1005,6 @@ function App() {
     });
   }, [opponent, activeTeam]);
 
-  const coverageSummaryData = useMemo(
-    () => (activeTeam.length ? coverageSummary(defense, offense, activeTeam.length, game) : null),
-    [defense, offense, activeTeam.length, game]
-  );
   const matchupSummaryData = useMemo(
     () => (opponentAnalysis && opponent ? matchupSummary(opponentAnalysis, opponent.name, activeTeam.length) : null),
     [opponentAnalysis, opponent, activeTeam.length]
