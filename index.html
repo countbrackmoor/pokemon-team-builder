@@ -18,12 +18,13 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <!-- Pokémon roster data. Must load before the app script below. -->
 <script src="pokedex.js"></script>
 
 <script type="text/babel" data-presets="react">
-const { useState, useMemo, useCallback } = React;
+const { useState, useMemo, useCallback, useRef } = React;
 
 // ── TYPE SYSTEM ──────────────────────────────────────────────────────────────
 const TYPES = [
@@ -83,7 +84,7 @@ function getDefensiveMultiplier(atkType, defTypes) {
   return defTypes.reduce((m, dt) => m * getEffectiveness(atkType, dt), 1);
 }
 
-// ── POKÉMON DATA ─────────────────────────────────────────────────────────────
+// ── POKÉMON DATA ────────────────────────────────────────────────────────────────
 // [Name, Type1, Type2|null, "S"=Shield "R"=Scarlet "B"=Both]
 // RAW_POKEMON is defined in pokedex.js (loaded before this script)
 
@@ -308,6 +309,164 @@ function suggestPokemon(team, game, limit = 8) {
   });
 
   return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+// ── AUTO-BUILD ENGINE ─────────────────────────────────────────────────────────
+// Greedy, deterministic, type-only optimizer. No stats/abilities/movesets —
+// same limitation as the Suggestions tab, which this reuses.
+
+function soloDefensiveScore(p) {
+  // How good is this Pokémon's typing in isolation: reward resistances and
+  // immunities, penalize weaknesses. Used only to seed an empty team, since
+  // suggestPokemon() needs an existing team to compute against.
+  let score = 0;
+  for (const t of TYPES) {
+    const m = getDefensiveMultiplier(t, p.types);
+    if (m === 0) score += 2;
+    else if (m < 1) score += 1;
+    else if (m > 1) score -= 1;
+  }
+  return score;
+}
+
+function autoBuildTeam(currentTeam, game) {
+  // currentTeam: array of full Pokémon objects already valid for `game`.
+  // Returns an array (<=6) of full Pokémon objects: the original team plus
+  // greedily-chosen additions. Never removes or reorders what was passed in.
+  let team = [...currentTeam];
+
+  if (team.length === 0) {
+    const candidates = POKEMON.filter(p => availableIn(p, game));
+    let best = null, bestScore = -Infinity;
+    for (const p of candidates) {
+      const s = soloDefensiveScore(p);
+      if (s > bestScore) { bestScore = s; best = p; }
+    }
+    if (best) team.push(best);
+  }
+
+  while (team.length < 6) {
+    const ranked = suggestPokemon(team, game, 1);
+    if (!ranked.length) break;
+    team.push(ranked[0]);
+  }
+
+  return team;
+}
+
+// ── EXPORT (CSV) ─────────────────────────────────────────────────────────────
+function csvEscape(v) {
+  const s = String(v == null ? "" : v);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function csvRow(arr) { return arr.map(csvEscape).join(","); }
+
+function multLabel(m) {
+  if (m === 0) return "0x";
+  if (m === 0.25) return "0.25x";
+  if (m === 0.5) return "0.5x";
+  return `${m}x`;
+}
+
+function buildCSV(team, defense, offense, summary, game) {
+  const lines = [];
+  lines.push(csvRow([`PokéTeamer Export — ${game}`]));
+  lines.push(csvRow([`Generated: ${new Date().toISOString().slice(0, 10)}`]));
+  lines.push("");
+  lines.push(csvRow(["TEAM"]));
+  lines.push(csvRow(["Slot", "Name", "Type 1", "Type 2"]));
+  team.forEach((p, i) => lines.push(csvRow([i + 1, p.name, p.types[0], p.types[1] || ""])));
+  lines.push("");
+  lines.push(csvRow(["DEFENSIVE COVERAGE (Incoming Attacks)"]));
+  lines.push(csvRow(["Type", "Best Multiplier", "Weak Members Count", "Status"]));
+  defense.forEach(d => {
+    const status = d.bestMult >= 2 ? "EXPOSED" : d.bestMult <= 0.5 ? "Safe" : "Neutral";
+    lines.push(csvRow([d.type, multLabel(d.bestMult), d.weakCount, status]));
+  });
+  lines.push("");
+  lines.push(csvRow(["OFFENSIVE COVERAGE (STAB)"]));
+  lines.push(csvRow(["Type", "Covered", "Covering Team Members"]));
+  offense.forEach(o => {
+    const names = [...new Set(o.coveredBy.map(c => c.name))].join("; ");
+    lines.push(csvRow([o.type, o.covered ? "Yes" : "No", names]));
+  });
+  if (summary) {
+    lines.push("");
+    lines.push(csvRow(["SUMMARY"]));
+    lines.push(csvRow(["Severity", summary.severity.toUpperCase()]));
+    summary.read.forEach(line => lines.push(csvRow(["What the numbers say", line])));
+    summary.act.forEach(line => lines.push(csvRow(["What I'd do", line])));
+  }
+  return lines.join("\r\n");
+}
+
+function downloadBlob(content, mime, filename) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── IMPORT (CSV) ─────────────────────────────────────────────────────────────
+// Reverses buildCSV()'s "TEAM" block. Tolerant of \r\n or \n line endings and
+// of the quoting/escaping csvEscape() applies (quotes, embedded commas).
+function parseCSVRow(line) {
+  const result = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      result.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseTeamCSV(text) {
+  const lines = text.split(/\r\n|\n/);
+  if (!lines.length) return null;
+
+  // Header line: `PokéTeamer Export — Shield` (or Scarlet)
+  const headerMatch = lines[0].match(/Export\s*—\s*(\S+)/);
+  const game = headerMatch ? headerMatch[1] : null;
+
+  const teamIdx = lines.findIndex(l => l.trim() === "TEAM");
+  if (teamIdx === -1) return null;
+
+  const entries = [];
+  // First row after "TEAM" is the column header (Slot,Name,Type 1,Type 2) — skip it.
+  for (let i = teamIdx + 2; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !line.trim()) break; // blank line ends the TEAM block
+    const cols = parseCSVRow(line);
+    const slot = parseInt(cols[0], 10);
+    const name = (cols[1] || "").trim();
+    if (!name) continue;
+    entries.push({ slot: Number.isFinite(slot) ? slot : null, name });
+  }
+  if (!entries.length) return null;
+
+  return { game: game === "Shield" || game === "Scarlet" ? game : null, entries };
 }
 
 // ── PLAIN-ENGLISH SUMMARY ENGINE ─────────────────────────────────────────────
@@ -767,6 +926,74 @@ function PokemonSearch({ value, onChange, game, placeholder, theme }) {
   );
 }
 
+// ── EXPORT CARD (off-screen, captured for image export) ──────────────────────
+function ExportCard({ team, defense, offense, summary, game, theme }) {
+  return (
+    <div id="export-card" style={{
+      position: "fixed", top: 0, left: "-9999px",
+      width: 640, padding: 24,
+      background: theme.bg, color: theme.text,
+      fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
+    }}>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, color: theme.accent, letterSpacing: 1 }}>
+        POKÉTEAMER — {game}
+      </div>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: theme.textDim, marginBottom: 18 }}>
+        {new Date().toLocaleDateString()}
+      </div>
+
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: theme.accent, letterSpacing: 1, marginBottom: 8 }}>
+        TEAM
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+        {team.map(p => (
+          <div key={p.name} style={{
+            background: theme.panel, border: `1px solid ${theme.border}`, borderRadius: 8,
+            padding: "8px 12px", display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</span>
+            {p.types.map(t => <TypeBadge key={t} type={t} small />)}
+          </div>
+        ))}
+      </div>
+
+      <SummaryCard summary={summary} theme={theme} />
+
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#6890f0", letterSpacing: 1, margin: "4px 0 8px" }}>
+        DEFENSIVE COVERAGE
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 20 }}>
+        {defense.map(d => (
+          <div key={d.type} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
+            background: theme.panel, borderRadius: 6, border: `1px solid ${theme.border2}`,
+          }}>
+            <TypeBadge type={d.type} small />
+            <MultBadge mult={d.bestMult} />
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: "#78c850", letterSpacing: 1, marginBottom: 8 }}>
+        OFFENSIVE COVERAGE (STAB)
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+        {offense.map(o => (
+          <div key={o.type} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "4px 8px",
+            background: theme.panel, borderRadius: 6, border: `1px solid ${theme.border2}`,
+          }}>
+            <TypeBadge type={o.type} small />
+            <span style={{ fontSize: 11, color: o.covered ? "#3e9e5f" : theme.danger, fontWeight: 700 }}>
+              {o.covered ? "✓" : "✗"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [dark, setDark] = useState(true);
@@ -776,6 +1003,8 @@ function App() {
   const [team, setTeam] = useState([null, null, null, null, null, null]);
   const [tab, setTab] = useState("coverage");
   const [opponent, setOpponent] = useState(null);
+  const [importError, setImportError] = useState(null);
+  const fileInputRef = useRef(null);
 
   const isValidForGame = useCallback((p) => !p || availableIn(p, game), [game]);
 
@@ -792,9 +1021,118 @@ function App() {
     [activeTeam, game]
   );
 
+  // Must be declared before any useCallback/useMemo below that lists it as a
+  // dependency (e.g. handleExportCSV) — referencing a const before its
+  // declaration throws a ReferenceError (temporal dead zone), which crashes
+  // the whole component silently on every render.
+  const coverageSummaryData = useMemo(
+    () => (activeTeam.length ? coverageSummary(defense, offense, activeTeam.length, game) : null),
+    [defense, offense, activeTeam.length, game]
+  );
+
   const setSlot = useCallback((i, p) => {
     setTeam(t => { const n = [...t]; n[i] = p; return n; });
   }, []);
+
+  const handleClear = useCallback(() => {
+    setTeam([null, null, null, null, null, null]);
+    setOpponent(null);
+    setImportError(null);
+  }, []);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleImportFile = useCallback((e) => {
+    const file = e.target.files && e.target.files[0];
+    // Reset the input immediately so re-selecting the same file re-fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const parsed = parseTeamCSV(String(ev.target.result || ""));
+      if (!parsed) {
+        setImportError("That file doesn't look like a PokéTeamer CSV export — no TEAM section found.");
+        return;
+      }
+
+      const targetGame = parsed.game || game;
+      const matched = new Array(6).fill(null);
+      const overflow = [];
+      const notFound = [];
+
+      parsed.entries.forEach((entry, idx) => {
+        const mon = POKEMON.find(p => p.name.toLowerCase() === entry.name.toLowerCase());
+        if (!mon) { notFound.push(entry.name); return; }
+        const slotIdx = entry.slot && entry.slot >= 1 && entry.slot <= 6 ? entry.slot - 1 : null;
+        if (slotIdx !== null && matched[slotIdx] === null) {
+          matched[slotIdx] = mon;
+        } else {
+          overflow.push(mon);
+        }
+      });
+      // Fill any empty slots with overflow entries (covers malformed/missing slot numbers).
+      for (let i = 0; i < 6 && overflow.length; i++) {
+        if (matched[i] === null) matched[i] = overflow.shift();
+      }
+
+      if (targetGame) setGame(targetGame);
+      setOpponent(null);
+      setTeam(matched);
+
+      if (notFound.length) {
+        setImportError(
+          `Imported, but ${notFound.length} ${notFound.length === 1 ? "entry wasn't" : "entries weren't"} found in the current roster: ${notFound.join(", ")}.`
+        );
+      } else {
+        setImportError(null);
+      }
+    };
+    reader.onerror = () => setImportError("Couldn't read that file.");
+    reader.readAsText(file);
+  }, [game]);
+
+  const handleAutoBuild = useCallback(() => {
+    const built = autoBuildTeam(activeTeam, game);
+    const originalNames = new Set(activeTeam.map(p => p.name));
+    const additions = built.filter(p => !originalNames.has(p.name));
+    if (!additions.length) return;
+    setTeam(t => {
+      const newTeam = [...t];
+      const emptyIndices = [];
+      newTeam.forEach((slot, i) => { if (slot === null) emptyIndices.push(i); });
+      additions.forEach((p, idx) => {
+        if (idx < emptyIndices.length) newTeam[emptyIndices[idx]] = p;
+      });
+      return newTeam;
+    });
+  }, [activeTeam, game]);
+
+  const handleExportCSV = useCallback(() => {
+    if (!activeTeam.length) return;
+    const csv = buildCSV(activeTeam, defense, offense, coverageSummaryData, game);
+    downloadBlob(csv, "text/csv;charset=utf-8;", `poketeamer-${game.toLowerCase()}-team.csv`);
+  }, [activeTeam, defense, offense, coverageSummaryData, game]);
+
+  const handleExportImage = useCallback(async () => {
+    if (!activeTeam.length) return;
+    if (!window.html2canvas) {
+      alert("Image export is still loading — try again in a moment.");
+      return;
+    }
+    const node = document.getElementById("export-card");
+    if (!node) return;
+    const canvas = await window.html2canvas(node, { backgroundColor: theme.bg, scale: 2 });
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `poketeamer-${game.toLowerCase()}-team.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [activeTeam, theme, game]);
 
   const opponentAnalysis = useMemo(() => {
     if (!opponent || !activeTeam.length) return null;
@@ -817,10 +1155,6 @@ function App() {
     });
   }, [opponent, activeTeam]);
 
-  const coverageSummaryData = useMemo(
-    () => (activeTeam.length ? coverageSummary(defense, offense, activeTeam.length, game) : null),
-    [defense, offense, activeTeam.length, game]
-  );
   const matchupSummaryData = useMemo(
     () => (opponentAnalysis && opponent ? matchupSummary(opponentAnalysis, opponent.name, activeTeam.length) : null),
     [opponentAnalysis, opponent, activeTeam.length]
@@ -915,6 +1249,78 @@ function App() {
               );
             })}
           </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            <button
+              onClick={handleAutoBuild}
+              disabled={team.every(s => s !== null)}
+              title="Fills empty slots with the best type-coverage additions given who's already on the team"
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.accent}60`,
+                background: `${theme.accent}15`, color: theme.accent,
+                cursor: team.every(s => s !== null) ? "not-allowed" : "pointer",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+                opacity: team.every(s => s !== null) ? 0.4 : 1,
+              }}
+            >⚡ Auto-Build Team</button>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              ref={fileInputRef}
+              onChange={handleImportFile}
+              style={{ display: "none" }}
+            />
+            <button
+              onClick={handleImportClick}
+              title="Load a team from a previously exported CSV"
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.border}`,
+                background: theme.panel, color: theme.textDim,
+                cursor: "pointer",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+              }}
+            >⬆ Import CSV</button>
+            <button
+              onClick={handleExportCSV}
+              disabled={!activeTeam.length}
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.border}`,
+                background: theme.panel, color: theme.textDim,
+                cursor: activeTeam.length ? "pointer" : "not-allowed",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+                opacity: activeTeam.length ? 1 : 0.4,
+              }}
+            >⬇ Export CSV</button>
+            <button
+              onClick={handleExportImage}
+              disabled={!activeTeam.length}
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.border}`,
+                background: theme.panel, color: theme.textDim,
+                cursor: activeTeam.length ? "pointer" : "not-allowed",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+                opacity: activeTeam.length ? 1 : 0.4,
+              }}
+            >⬇ Export Image</button>
+            <button
+              onClick={handleClear}
+              disabled={team.every(s => s === null)}
+              title="Clear all team slots"
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.danger}60`,
+                background: `${theme.danger}12`, color: theme.danger,
+                cursor: team.every(s => s === null) ? "not-allowed" : "pointer",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+                opacity: team.every(s => s === null) ? 0.4 : 1,
+              }}
+            >🗑 Clear</button>
+          </div>
+
+          {importError && (
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: theme.danger, fontFamily: "'Space Mono', monospace" }}>
+              {importError}
+            </p>
+          )}
         </div>
 
         {activeTeam.length === 0 && (
@@ -1138,6 +1544,15 @@ function App() {
           </>
         )}
       </div>
+
+      <ExportCard
+        team={activeTeam}
+        defense={defense}
+        offense={offense}
+        summary={coverageSummaryData}
+        game={game}
+        theme={theme}
+      />
     </div>
   );
 }
