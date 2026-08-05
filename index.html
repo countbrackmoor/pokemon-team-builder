@@ -24,7 +24,7 @@
 <script src="pokedex.js"></script>
 
 <script type="text/babel" data-presets="react">
-const { useState, useMemo, useCallback } = React;
+const { useState, useMemo, useCallback, useRef } = React;
 
 // ── TYPE SYSTEM ──────────────────────────────────────────────────────────────
 const TYPES = [
@@ -84,7 +84,7 @@ function getDefensiveMultiplier(atkType, defTypes) {
   return defTypes.reduce((m, dt) => m * getEffectiveness(atkType, dt), 1);
 }
 
-// ── POKÉMON DATA ─────────────────────────────────────────────────────────────
+// ── POKÉMON DATA ────────────────────────────────────────────────────────────────
 // [Name, Type1, Type2|null, "S"=Shield "R"=Scarlet "B"=Both]
 // RAW_POKEMON is defined in pokedex.js (loaded before this script)
 
@@ -241,6 +241,7 @@ const OPPONENTS = {
 
 // ── ANALYSIS ENGINE ──────────────────────────────────────────────────────────
 function analyzeTeamDefense(team) {
+  // For each attacking type, find best (lowest) multiplier across team
   return TYPES.map(atkType => {
     const matchups = team.map(p => ({
       name: p.name,
@@ -264,6 +265,7 @@ function analyzeTeamDefense(team) {
 }
 
 function analyzeTeamOffense(team) {
+  // For each defending type, check if any team member has STAB coverage
   return TYPES.map(defType => {
     const coverage = team.flatMap(p =>
       p.types.map(t => ({ name: p.name, atkType: t, mult: getEffectiveness(t, defType) }))
@@ -291,11 +293,13 @@ function suggestPokemon(team, game, limit = 8) {
 
   const scored = candidates.map(p => {
     let score = 0;
+    // Reward: resists team weaknesses
     for (const wt of weakTypes) {
       const mult = getDefensiveMultiplier(wt, p.types);
       if (mult === 0) score += 3;
       else if (mult < 1) score += 2;
     }
+    // Reward: STAB covers uncovered types
     for (const ut of uncoveredTypes) {
       for (const t of p.types) {
         if (getEffectiveness(t, ut) > 1) score += 1.5;
@@ -308,7 +312,13 @@ function suggestPokemon(team, game, limit = 8) {
 }
 
 // ── AUTO-BUILD ENGINE ─────────────────────────────────────────────────────────
+// Greedy, deterministic, type-only optimizer. No stats/abilities/movesets —
+// same limitation as the Suggestions tab, which this reuses.
+
 function soloDefensiveScore(p) {
+  // How good is this Pokémon's typing in isolation: reward resistances and
+  // immunities, penalize weaknesses. Used only to seed an empty team, since
+  // suggestPokemon() needs an existing team to compute against.
   let score = 0;
   for (const t of TYPES) {
     const m = getDefensiveMultiplier(t, p.types);
@@ -320,6 +330,9 @@ function soloDefensiveScore(p) {
 }
 
 function autoBuildTeam(currentTeam, game) {
+  // currentTeam: array of full Pokémon objects already valid for `game`.
+  // Returns an array (<=6) of full Pokémon objects: the original team plus
+  // greedily-chosen additions. Never removes or reorders what was passed in.
   let team = [...currentTeam];
 
   if (team.length === 0) {
@@ -400,7 +413,66 @@ function downloadBlob(content, mime, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── IMPORT (CSV) ─────────────────────────────────────────────────────────────
+// Reverses buildCSV()'s "TEAM" block. Tolerant of \r\n or \n line endings and
+// of the quoting/escaping csvEscape() applies (quotes, embedded commas).
+function parseCSVRow(line) {
+  const result = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      result.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseTeamCSV(text) {
+  const lines = text.split(/\r\n|\n/);
+  if (!lines.length) return null;
+
+  // Header line: `PokéTeamer Export — Shield` (or Scarlet)
+  const headerMatch = lines[0].match(/Export\s*—\s*(\S+)/);
+  const game = headerMatch ? headerMatch[1] : null;
+
+  const teamIdx = lines.findIndex(l => l.trim() === "TEAM");
+  if (teamIdx === -1) return null;
+
+  const entries = [];
+  // First row after "TEAM" is the column header (Slot,Name,Type 1,Type 2) — skip it.
+  for (let i = teamIdx + 2; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !line.trim()) break; // blank line ends the TEAM block
+    const cols = parseCSVRow(line);
+    const slot = parseInt(cols[0], 10);
+    const name = (cols[1] || "").trim();
+    if (!name) continue;
+    entries.push({ slot: Number.isFinite(slot) ? slot : null, name });
+  }
+  if (!entries.length) return null;
+
+  return { game: game === "Shield" || game === "Scarlet" ? game : null, entries };
+}
+
 // ── PLAIN-ENGLISH SUMMARY ENGINE ─────────────────────────────────────────────
+// Rule-based. Deterministic, no network, no API. Fixed severity vocabulary:
+//   critical | notable | minor | clean
+
 function listPhrase(arr, cap = 5) {
   if (arr.length === 0) return "";
   if (arr.length === 1) return arr[0];
@@ -414,12 +486,15 @@ function listPhrase(arr, cap = 5) {
 }
 
 function coverageSummary(defense, offense, teamSize, game) {
+  // Exposed = nothing on the team resists it (best multiplier >= 2)
   const exposed = defense
     .filter(d => d.bestMult >= 2)
     .sort((a, b) => (b.bestMult - a.bestMult) || (b.weakCount - a.weakCount));
+  // Crowded = many members weak, even if something resists
   const crowded = defense.filter(d => d.weakCount >= Math.ceil(teamSize / 2) && d.bestMult < 2);
   const uncovered = offense.filter(o => !o.covered).map(o => o.type);
 
+  // Severity weighs BOTH defensive holes and offensive gaps.
   let severity, headline;
   if (exposed.length >= 3) {
     severity = "critical";
@@ -443,6 +518,7 @@ function coverageSummary(defense, offense, teamSize, game) {
     headline = "No defensive holes and no coverage gaps — this team is balanced on type alone.";
   }
 
+  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (exposed.length > 0) {
@@ -467,6 +543,7 @@ function coverageSummary(defense, offense, teamSize, game) {
     read.push("Offensively you can hit every type super-effectively with a same-type attack.");
   }
 
+  // ── ACT (opinionated)
   const act = [];
   if (exposed.length > 0) {
     const worst = exposed[0];
@@ -495,10 +572,13 @@ function coverageSummary(defense, offense, teamSize, game) {
 
 function matchupSummary(analysis, opponentName, teamSize) {
   const total = analysis.length;
+  // A mon is "answered" if someone on your team hits it super-effectively
   const answered = analysis.filter(a => a.matchups.some(m => m.myAtk > 1));
+  // A mon is "threatening" if it hits someone super-effectively AND you can't hit it back hard
   const problems = analysis.filter(
     a => !a.matchups.some(m => m.myAtk > 1) && a.matchups.some(m => m.theirAtk > 1)
   );
+  // Count how often each of your mons is the recommended lead
   const leadCounts = {};
   analysis.forEach(a => {
     leadCounts[a.bestCounter.myMon] = (leadCounts[a.bestCounter.myMon] || 0) + 1;
@@ -521,6 +601,7 @@ function matchupSummary(analysis, opponentName, teamSize) {
     headline = `${problems.length} of ${opponentName}'s ${total} threaten your team with no super-effective reply from you.`;
   }
 
+  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (topLead) {
@@ -532,6 +613,7 @@ function matchupSummary(analysis, opponentName, teamSize) {
     read.push(`No super-effective answer to: ${listPhrase(problems.map(p => p.opp.name))}.`);
   }
 
+  // ── ACT (opinionated)
   const act = [];
   if (topLead && topLead[1] > 1) {
     act.push(`Lead ${topLead[0]}. It covers the most of their roster, so it forces them to react first.`);
@@ -560,6 +642,7 @@ function suggestionsSummary(suggestions, defense, offense, game) {
   const topCovers = uncovered.filter(ut => top.types.some(t => getEffectiveness(t, ut) > 1));
   const doesBoth = topResists.length > 0 && topCovers.length > 0;
 
+  // How many of the listed candidates solve both problems?
   const bothCount = suggestions.filter(s => {
     const r = weakTypes.some(wt => getDefensiveMultiplier(wt, s.types) < 1);
     const c = uncovered.some(ut => s.types.some(t => getEffectiveness(t, ut) > 1));
@@ -578,6 +661,7 @@ function suggestionsSummary(suggestions, defense, offense, game) {
     headline = `${top.name} ranks first, but no available Pokémon fixes both your defensive and offensive gaps together.`;
   }
 
+  // ── READ (factual)
   const read = [];
   read.push(headline);
   if (topResists.length > 0) {
@@ -590,6 +674,7 @@ function suggestionsSummary(suggestions, defense, offense, game) {
     `Ranking is based on type matchups only — it doesn't account for base stats, abilities, held items, or what you can realistically catch right now.`
   );
 
+  // ── ACT (opinionated)
   const act = [];
   if (doesBoth) {
     act.push(
@@ -918,9 +1003,12 @@ function App() {
   const [team, setTeam] = useState([null, null, null, null, null, null]);
   const [tab, setTab] = useState("coverage");
   const [opponent, setOpponent] = useState(null);
+  const [importError, setImportError] = useState(null);
+  const fileInputRef = useRef(null);
 
   const isValidForGame = useCallback((p) => !p || availableIn(p, game), [game]);
 
+  // Only Pokémon valid for the current game feed the analysis engines.
   const activeTeam = team.filter(p => p && isValidForGame(p));
   const invalidSlots = team.filter(p => p && !isValidForGame(p));
 
@@ -945,6 +1033,66 @@ function App() {
   const setSlot = useCallback((i, p) => {
     setTeam(t => { const n = [...t]; n[i] = p; return n; });
   }, []);
+
+  const handleClear = useCallback(() => {
+    setTeam([null, null, null, null, null, null]);
+    setOpponent(null);
+    setImportError(null);
+  }, []);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleImportFile = useCallback((e) => {
+    const file = e.target.files && e.target.files[0];
+    // Reset the input immediately so re-selecting the same file re-fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const parsed = parseTeamCSV(String(ev.target.result || ""));
+      if (!parsed) {
+        setImportError("That file doesn't look like a PokéTeamer CSV export — no TEAM section found.");
+        return;
+      }
+
+      const targetGame = parsed.game || game;
+      const matched = new Array(6).fill(null);
+      const overflow = [];
+      const notFound = [];
+
+      parsed.entries.forEach((entry, idx) => {
+        const mon = POKEMON.find(p => p.name.toLowerCase() === entry.name.toLowerCase());
+        if (!mon) { notFound.push(entry.name); return; }
+        const slotIdx = entry.slot && entry.slot >= 1 && entry.slot <= 6 ? entry.slot - 1 : null;
+        if (slotIdx !== null && matched[slotIdx] === null) {
+          matched[slotIdx] = mon;
+        } else {
+          overflow.push(mon);
+        }
+      });
+      // Fill any empty slots with overflow entries (covers malformed/missing slot numbers).
+      for (let i = 0; i < 6 && overflow.length; i++) {
+        if (matched[i] === null) matched[i] = overflow.shift();
+      }
+
+      if (targetGame) setGame(targetGame);
+      setOpponent(null);
+      setTeam(matched);
+
+      if (notFound.length) {
+        setImportError(
+          `Imported, but ${notFound.length} ${notFound.length === 1 ? "entry wasn't" : "entries weren't"} found in the current roster: ${notFound.join(", ")}.`
+        );
+      } else {
+        setImportError(null);
+      }
+    };
+    reader.onerror = () => setImportError("Couldn't read that file.");
+    reader.readAsText(file);
+  }, [game]);
 
   const handleAutoBuild = useCallback(() => {
     const built = autoBuildTeam(activeTeam, game);
@@ -990,9 +1138,11 @@ function App() {
     if (!opponent || !activeTeam.length) return null;
     return opponent.pokemon.map(opp => {
       const matchups = activeTeam.map(mine => {
+        // My offensive STAB vs their types
         const myAtk = Math.max(...mine.types.map(t =>
           opp.types.reduce((m, dt) => m * getEffectiveness(t, dt), 1)
         ));
+        // Their offensive STAB vs my types
         const theirAtk = Math.max(...opp.types.map(t =>
           mine.types.reduce((m, dt) => m * getEffectiveness(t, dt), 1)
         ));
@@ -1113,6 +1263,23 @@ function App() {
                 opacity: team.every(s => s !== null) ? 0.4 : 1,
               }}
             >⚡ Auto-Build Team</button>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              ref={fileInputRef}
+              onChange={handleImportFile}
+              style={{ display: "none" }}
+            />
+            <button
+              onClick={handleImportClick}
+              title="Load a team from a previously exported CSV"
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.border}`,
+                background: theme.panel, color: theme.textDim,
+                cursor: "pointer",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+              }}
+            >⬆ Import CSV</button>
             <button
               onClick={handleExportCSV}
               disabled={!activeTeam.length}
@@ -1135,7 +1302,25 @@ function App() {
                 opacity: activeTeam.length ? 1 : 0.4,
               }}
             >⬇ Export Image</button>
+            <button
+              onClick={handleClear}
+              disabled={team.every(s => s === null)}
+              title="Clear all team slots"
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: `1px solid ${theme.danger}60`,
+                background: `${theme.danger}12`, color: theme.danger,
+                cursor: team.every(s => s === null) ? "not-allowed" : "pointer",
+                fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+                opacity: team.every(s => s === null) ? 0.4 : 1,
+              }}
+            >🗑 Clear</button>
           </div>
+
+          {importError && (
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: theme.danger, fontFamily: "'Space Mono', monospace" }}>
+              {importError}
+            </p>
+          )}
         </div>
 
         {activeTeam.length === 0 && (
