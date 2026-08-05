@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.5.0] - 2026-08-04
+
+### Added
+- **Clear button** — resets all 6 team slots and the selected opponent in one click. Disabled when the team is already empty.
+- **Import CSV** — loads a team back in from a file previously produced by Export CSV. Reads the `TEAM` block, matches each name against the current roster (case-insensitive), restores slot order from the `Slot` column, and switches to whichever game the export was made for. Any name that isn't found in the current roster (e.g. an export from a different dataset version) is skipped and reported in an inline warning rather than silently dropped or crashing the import.
+
+### Notes
+- Import is tolerant of the CSV's quoting/escaping and of `\r\n` or `\n` line endings.
+- Import only reads the `TEAM` block — the Defensive/Offensive Coverage and Summary sections of an export are informational and are not re-imported (they're recomputed live from the restored team).
+
 ## [1.4.1] - 2026-08-01
 
 ### Fixed
