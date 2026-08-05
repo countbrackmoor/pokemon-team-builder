@@ -21,6 +21,8 @@ Switching between Shield and Scarlet keeps your team intact. Any Pokémon not av
 
 Single-file HTML page. React + Babel Standalone loaded via CDN (`unpkg.com`) — no build step, no backend. All data (Pokémon roster, type chart, opponent rosters) is embedded client-side; the Pokémon roster itself lives in `pokedex.js`, separate from app logic. Image export uses html2canvas (also via CDN). Team state lives only in memory — nothing persists across a page reload except via manual Export/Import.
 
+CDN script tags are version-pinned (e.g. `@babel/standalone@7`) rather than left to float to "latest" — an unpinned Babel Standalone URL previously jumped to a new major version with a breaking default and took the whole page down (see [CHANGELOG](CHANGELOG.md) 1.5.1).
+
 ## Data source
 
 Pokémon roster and typing pulled from a maintained spreadsheet (Shield: Galar/Isle of Armor/Crown Tundra dexes; Scarlet: Paldea/Kitakami/Blueberry dexes, plus Crown Tundra Dynamax Adventure legendaries). Opponent gym/E4/Champion rosters are hand-compiled and not independently verified against a live source — treat as a solid approximation, not gospel.

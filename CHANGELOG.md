@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.5.1] - 2026-08-04
+
+### Fixed
+- **Blank white page on load, again.** Babel Standalone was loaded from an unpinned CDN URL (`unpkg.com/@babel/standalone/babel.min.js`), which resolves to whatever the latest published version is. That URL started resolving to Babel 8, which changed `@babel/preset-react`'s default JSX runtime to "automatic" — the transpiled output now contains an `import` statement, but Babel Standalone injects it as a classic (non-module) `<script>`, so the browser throws `SyntaxError: Cannot use import statement outside a module` before React mounts. Pinned the script tag to `@babel/standalone@7` (the last major before the runtime default changed) to stop the CDN from silently upgrading the page onto a breaking Babel major.
+
 ## [1.5.0] - 2026-08-04
 
 ### Added
